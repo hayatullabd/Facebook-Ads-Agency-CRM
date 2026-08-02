@@ -128,6 +128,7 @@ export interface AdRequest {
   budget: { amount: number; type: "daily" | "lifetime"; currency: string };
   durationDays: number;
   notes: string;
+  contentLink?: string;
   status: RequestStatus;
   agencyNote?: string;
   createdAt: string;

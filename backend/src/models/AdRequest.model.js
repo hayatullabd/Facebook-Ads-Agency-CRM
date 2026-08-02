@@ -70,6 +70,24 @@ const adRequestSchema = new mongoose.Schema(
       maxlength: 2000,
       default: "",
     },
+    contentLink: {
+      type: String,
+      trim: true,
+      maxlength: 2048,
+      default: "",
+      validate: {
+        validator(value) {
+          if (!value) return true;
+          try {
+            const url = new URL(value);
+            return url.protocol === "http:" || url.protocol === "https:";
+          } catch {
+            return false;
+          }
+        },
+        message: "Content link must be an absolute HTTP or HTTPS URL",
+      },
+    },
     status: {
       type: String,
       enum: ["Under Review", "Approved", "Live", "Rejected"],
