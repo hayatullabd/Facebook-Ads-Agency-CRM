@@ -1,0 +1,150 @@
+export type Screen = "dashboard" | "requests" | "clients" | "campaigns" | "billing" | "settings" | "updates" | "users";
+export type Role = "client" | "team" | "admin" | "moderator";
+export type AdPlatform = "facebook" | "instagram" | "both";
+export type RequestStatus = "Under Review" | "Approved" | "Live" | "Rejected";
+export type InvoiceStatus = "Unpaid" | "Paid" | "Overdue";
+
+export interface AgencyProfile {
+  _id: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  defaultCurrency: "BDT" | "USD" | "INR";
+  defaultRate: number;
+}
+export interface FacebookOverview {
+  agency: {
+    id: string;
+    name: string;
+    currency: string;
+  };
+  connection: {
+    status: "connected" | "demo" | "not-connected";
+    isConnected: boolean;
+    adAccountId: string;
+    tokenConfigured: boolean;
+    lastVerifiedAt: string | null;
+    lastSyncAt: string | null;
+    graphApiReady: boolean;
+    graphApi: {
+      baseUrl: string;
+      adAccountId: string;
+      insightsEndpoint: string;
+    } | null;
+  };
+  overview: {
+    spend: number;
+    impressions: number;
+    results: number;
+    activeCampaigns: number;
+    campaignCount: number;
+    billedAmount: number;
+    unpaidAmount: number;
+    dueSoonCount: number;
+    usage: {
+      callsUsed: number;
+      callsLimit: number;
+      resetAt: string | null;
+    };
+    currency: string;
+    cpa: number;
+  };
+  recentCampaigns: Array<{
+    id: string;
+    name: string;
+    status: string;
+    spend: number;
+    impressions: number;
+    results: number;
+    costPerResult: number;
+  }>;
+  billing: {
+    billedAmount: number;
+    unpaidAmount: number;
+    dueSoonCount: number;
+    currency: string;
+    paidRatio: number;
+  };
+  source: string;
+  updatedAt: string;
+}
+
+export interface Client {
+  _id: string;
+  name: string;
+  contactName: string;
+  email: string;
+  facebookPageName: string;
+  adAccountId: string;
+  status: "active" | "paused" | "onboarding";
+  monthlyBudget: number;
+  totalSpend: number;
+  activeCampaigns: number;
+  billingRate: number;
+  color: string;
+}
+
+export interface UserAccount {
+  _id: string;
+  agency: string;
+  client?: Client | string | null;
+  name: string;
+  email: string;
+  role: Role;
+  avatarColor: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AdRequest {
+  _id: string;
+  requestNumber: string;
+  client?: Client;
+  pageName: string;
+  platform: AdPlatform;
+  objectiveGroup: string;
+  objective: string;
+  budget: { amount: number; type: "daily" | "lifetime"; currency: string };
+  durationDays: number;
+  notes: string;
+  status: RequestStatus;
+  agencyNote?: string;
+  createdAt: string;
+}
+
+export interface Campaign {
+  _id: string;
+  name: string;
+  client?: Client;
+  platform: AdPlatform;
+  objective: string;
+  status: "draft" | "scheduled" | "active" | "paused" | "completed" | "failed";
+  budget: { amount: number; type: "daily" | "lifetime"; currency: string };
+  performance: { spend: number; reach: number; impressions: number; results: number; costPerResult: number };
+}
+
+export interface Invoice {
+  _id: string;
+  invoiceNumber: string;
+  client?: Client;
+  pageName: string;
+  objective: string;
+  budget: { amount: number; type: "daily" | "lifetime"; currency: string };
+  durationDays: number;
+  rate: number;
+  amount: number;
+  currency: string;
+  status: InvoiceStatus;
+  dueDate: string;
+  createdAt: string;
+}
+
+export interface ClientUpdate {
+  _id: string;
+  client?: Client;
+  adRequest?: AdRequest;
+  type: "message" | "performance" | "billing" | "status";
+  title: string;
+  content: string;
+  createdAt: string;
+}

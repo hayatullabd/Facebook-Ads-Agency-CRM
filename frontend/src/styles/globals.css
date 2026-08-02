@@ -1,0 +1,37 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+@layer base {
+  html { color-scheme: dark; }
+  body { min-height: 100vh; margin: 0; background: #0a0e17; color: #e2e8f0; }
+  #root { min-height: 100vh; }
+  ::selection { background: rgba(37, 99, 235, 0.4); color: #fff; }
+  * { scrollbar-color: #334155 transparent; }
+  button, input, select, textarea { letter-spacing: 0; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+@layer components {
+  .crm-input { @apply w-full rounded-md border border-[#263044] bg-[#0a0e17] px-3 py-2 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15; }
+  .crm-label { @apply mb-1.5 block text-[11px] font-semibold uppercase text-slate-500; }
+  .crm-table-head { @apply bg-[#0d121e] text-left text-[11px] font-semibold uppercase text-slate-500; }
+  .crm-table-cell { @apply border-b border-[#20293a] px-4 py-3 text-sm text-slate-300; }
+  .crm-icon-button { @apply inline-flex size-8 items-center justify-center rounded-md border border-[#263044] bg-[#0d121e] text-slate-400 transition hover:border-slate-500 hover:text-white disabled:opacity-40; }
+  .crm-empty { @apply flex min-h-40 flex-col items-center justify-center gap-2 px-6 py-10 text-center text-sm text-slate-400; }
+  .crm-mobile-list { @apply grid gap-3 p-3 md:hidden; }
+  .crm-mobile-card { @apply rounded-md border border-[#263044] bg-[#0d121e] p-4; }
+  .crm-desktop-table { @apply hidden overflow-x-auto md:block; }
+  .crm-page-title { @apply text-xl font-semibold text-slate-100; }
+  .crm-page-subtitle { @apply mt-0.5 text-sm text-slate-400; }
+}
+
+@media (max-width: 767px) {
+  .crm-responsive-table { overflow-x: visible; }
+  .crm-responsive-table table { table-layout: auto; }
+  .crm-responsive-table th:nth-child(n+4):not(:last-child),
+  .crm-responsive-table td:nth-child(n+4):not(:last-child) { display: none; }
+  .crm-responsive-table th,
+  .crm-responsive-table td { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
