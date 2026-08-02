@@ -136,7 +136,7 @@ export interface AdRequest {
 export interface Campaign {
   _id: string;
   name: string;
-  client?: Client;
+  client?: Client | null;
   source: "crm" | "facebook";
   facebookCampaignId?: string;
   facebookAdAccountId?: string;

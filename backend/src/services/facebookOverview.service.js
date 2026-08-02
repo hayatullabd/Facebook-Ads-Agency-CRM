@@ -3,6 +3,8 @@ import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import Campaign from "../models/Campaign.model.js";
 import Invoice from "../models/Invoice.model.js";
+import Client from "../models/Client.model.js";
+import { getClientCampaignVisibility } from "./campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
 
 const GRAPH_HOST = "graph.facebook.com";
@@ -192,12 +194,32 @@ export async function syncFacebookInsightsForAgency(agencyId) {
 }
 
 export async function getFacebookAccountsForAgency(agencyId, clientId = null) {
-  if (!clientId) {
-    const credential = await ApiCredential.findOne({ agency: agencyId });
-    return (credential?.adAccounts || []).map(accountDto);
+  const credential = await ApiCredential.findOne({ agency: agencyId });
+  if (!clientId) return (credential?.adAccounts || []).map(accountDto);
+
+  const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("facebookAdAccountIds");
+  const assignedIds = new Set(client?.facebookAdAccountIds || []);
+  const individuallyAssigned = await Campaign.find({ agency: agencyId, client: clientId, source: "facebook" })
+    .select("facebookAdAccountId facebookAdAccountName");
+  const visibleIds = new Set([
+    ...assignedIds,
+    ...individuallyAssigned.map((campaign) => campaign.facebookAdAccountId).filter(Boolean),
+  ]);
+  const snapshots = new Map((credential?.adAccounts || []).map((account) => {
+    const dto = accountDto(account);
+    return [dto.facebookAdAccountId, dto];
+  }));
+  for (const campaign of individuallyAssigned) {
+    if (campaign.facebookAdAccountId && !snapshots.has(campaign.facebookAdAccountId)) {
+      snapshots.set(campaign.facebookAdAccountId, {
+        facebookAdAccountId: campaign.facebookAdAccountId,
+        accountId: campaign.facebookAdAccountId.replace(/^act_/, ""),
+        name: campaign.facebookAdAccountName || "",
+        isAccessible: false,
+      });
+    }
   }
-  const campaigns = await Campaign.find({ agency: agencyId, client: clientId, source: "facebook" }).select("facebookAdAccountId facebookAdAccountName");
-  return [...new Map(campaigns.filter((campaign) => campaign.facebookAdAccountId).map((campaign) => [campaign.facebookAdAccountId, { facebookAdAccountId: campaign.facebookAdAccountId, accountId: campaign.facebookAdAccountId.replace(/^act_/, ""), name: campaign.facebookAdAccountName, isAccessible: true }])).values()];
+  return [...visibleIds].map((id) => snapshots.get(id)).filter(Boolean);
 }
 
 export async function disconnectFacebookForAgency(agencyId, revokeRemote = false) {
@@ -223,8 +245,9 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
 }
 
 export async function getFacebookOverviewForAgency(agencyId, clientId = null) {
-  const dataScope = clientId ? { agency: agencyId, client: clientId } : { agency: agencyId };
-  const [agency, credential, campaigns, invoices] = await Promise.all([Agency.findById(agencyId), ApiCredential.findOne({ agency: agencyId }).select("+accessToken"), Campaign.find(dataScope).sort({ createdAt: -1 }), Invoice.find(dataScope).sort({ createdAt: -1 })]);
+  const campaignScope = clientId ? await getClientCampaignVisibility(agencyId, clientId) : { agency: agencyId };
+  const invoiceScope = clientId ? { agency: agencyId, client: clientId } : { agency: agencyId };
+  const [agency, credential, campaigns, invoices] = await Promise.all([Agency.findById(agencyId), ApiCredential.findOne({ agency: agencyId }).select("+accessToken"), Campaign.find(campaignScope).sort({ createdAt: -1 }), Invoice.find(invoiceScope).sort({ createdAt: -1 })]);
   const spend = sum(campaigns.map((campaign) => campaign.performance?.spend ?? 0)); const impressions = sum(campaigns.map((campaign) => campaign.performance?.impressions ?? 0)); const results = sum(campaigns.map((campaign) => campaign.performance?.results ?? 0)); const billedAmount = sum(invoices.map((invoice) => invoice.amount ?? 0)); const unpaidAmount = sum(invoices.filter((invoice) => invoice.status !== "Paid").map((invoice) => invoice.amount ?? 0));
   const scopedAccounts = clientId ? await getFacebookAccountsForAgency(agencyId, clientId) : (credential?.adAccounts || []).map(accountDto);
   return { agency: { id: agency?._id?.toString?.() || agencyId, name: agency?.name || "Agency", currency: agency?.defaultCurrency || "USD" }, connection: { status: credential?.isConnected && credential.accessToken ? "connected" : "not-connected", isConnected: Boolean(credential?.isConnected && credential?.accessToken), adAccountId: credential?.defaultAdAccountId || "", accountCount: scopedAccounts.length, accounts: scopedAccounts, tokenConfigured: Boolean(credential?.accessToken), lastVerifiedAt: credential?.lastVerifiedAt || null, lastSyncAt: credential?.lastSyncAt || null, lastAccountSyncAt: credential?.lastAccountSyncAt || null, lastSyncStatus: credential?.lastSyncStatus || "never", graphApiReady: Boolean(credential?.isConnected && credential?.accessToken), graphApi: null }, overview: { spend, impressions, results, activeCampaigns: campaigns.filter((campaign) => campaign.status === "active").length, campaignCount: campaigns.length, billedAmount, unpaidAmount, dueSoonCount: 0, usage: credential?.apiUsage || { callsUsed: 0, callsLimit: 200, resetAt: null }, currency: agency?.defaultCurrency || "USD", cpa: results ? spend / results : 0 }, recentCampaigns: formatRecentCampaigns(campaigns), billing: { billedAmount, unpaidAmount, dueSoonCount: 0, currency: agency?.defaultCurrency || "USD", paidRatio: 0 }, source: credential?.isConnected ? "facebook-graph-and-stored-data" : "stored-crm-data", updatedAt: new Date().toISOString() };

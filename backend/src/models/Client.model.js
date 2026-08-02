@@ -47,6 +47,10 @@ const clientSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    facebookAdAccountIds: {
+      type: [{ type: String, trim: true, match: /^act_\d+$/ }],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["active", "paused", "onboarding"],
@@ -93,5 +97,9 @@ const clientSchema = new mongoose.Schema(
 );
 
 clientSchema.index({ agency: 1, email: 1 }, { unique: true });
+clientSchema.index(
+  { agency: 1, facebookAdAccountIds: 1 },
+  { unique: true, partialFilterExpression: { "facebookAdAccountIds.0": { $exists: true } } }
+);
 
 export default mongoose.model("Client", clientSchema);

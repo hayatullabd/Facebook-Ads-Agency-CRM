@@ -1,4 +1,5 @@
 import Client from "../models/Client.model.js";
+import { deleteClientAndDetachFacebookCampaigns, setClientAdAccountAssignment } from "../services/campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -35,7 +36,16 @@ export const updateClient = asyncHandler(async (req, res) => {
 });
 
 export const deleteClient = asyncHandler(async (req, res) => {
-  const client = await Client.findOneAndDelete({ _id: req.params.clientId, agency: req.params.agencyId });
-  if (!client) throw new ApiError(404, "Client not found");
+  await deleteClientAndDetachFacebookCampaigns(req.params.agencyId, req.params.clientId);
   res.json(new ApiResponse(200, null, "Client deleted"));
+});
+
+export const assignClientFacebookAccount = asyncHandler(async (req, res) => {
+  const client = await setClientAdAccountAssignment({
+    agencyId: req.params.agencyId,
+    clientId: req.params.clientId,
+    facebookAdAccountId: req.body.facebookAdAccountId,
+    assigned: req.body.assigned,
+  });
+  res.json(new ApiResponse(200, client, req.body.assigned ? "Facebook ad account assigned" : "Facebook ad account unassigned"));
 });

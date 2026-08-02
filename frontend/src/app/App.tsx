@@ -4,7 +4,7 @@ import type { ClientUpdate, RequestStatus, Role, Screen } from "../types/crm";
 import { formatDate } from "../lib/formatters";
 import { createClient, deleteClient, updateClient } from "../features/clients/clientsApi";
 import { createAdRequest, updateRequestStatus } from "../features/requests/requestsApi";
-import { updateCampaign } from "../features/campaigns/campaignsApi";
+import { assignCampaignClient, assignClientAdAccount, updateCampaign } from "../features/campaigns/campaignsApi";
 import { markInvoicePaid } from "../features/billing/billingApi";
 import { createUser, removeUser } from "../features/users/usersApi";
 import { AppShell } from "../features/shared/AppShell";
@@ -124,7 +124,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
         {screen === "dashboard" && <DashboardPage clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
         {screen === "clients" && <ClientsPage clients={data.clients} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
         {screen === "requests" && <RequestsPage clients={data.clients} requests={data.requests} role={session.user.role} currentClient={session.user.client} onCreateRequest={(payload) => mutate(() => createAdRequest(agency, payload))} onUpdateStatus={(id, status: RequestStatus) => mutate(() => updateRequestStatus(agency, id, { status }))} />}
-        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} role={session.user.role} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} />}
+        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} role={session.user.role} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
         {screen === "billing" && <BillingPage invoices={data.invoices} role={session.user.role} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} />}
         {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} />}
         {screen === "updates" && <Updates updates={data.updates} />}

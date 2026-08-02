@@ -62,6 +62,10 @@ NODE_ENV=production npm start
 
 Serve `frontend/dist` with a production static host or reverse proxy. The static host must rewrite unknown, non-file browser routes to `frontend/dist/index.html` so `BrowserRouter` routes continue to work after refreshes.
 
+### Vercel frontend deployment
+
+Create the Vercel project with **Root Directory** `frontend`, **Framework Preset** `Vite`, and **Output Directory** `dist`. Set `VITE_API_URL` to the deployed backend API base (including `/api`, for example `https://api.example.com/api`), then redeploy. `frontend/vercel.json` already includes the SPA route fallback, so direct reloads of `/dashboard`, `/campaigns`, and other browser routes resolve to `index.html` while built assets continue to serve normally.
+
 The backend exposes `/health/live` for liveness and `/health/ready` for readiness checks. `/health` remains available for backward compatibility.
 
 Authentication and global rate-limit stores are process-local. Multi-instance production deployments must use shared external stores and a load-balancer strategy that preserves correct authentication and rate-limiting behavior.

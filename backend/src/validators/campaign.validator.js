@@ -1,4 +1,4 @@
-import { validateObject } from "./common.validator.js";
+import { isObjectId, validateObject } from "./common.validator.js";
 
 export const validateCampaignCreate = validateObject({
   client: { required: true, type: "string" },
@@ -11,3 +11,7 @@ export const validateCampaignUpdate = validateObject({ status: { type: "string",
 export const validateFacebookCampaignQuery = validateObject({
   facebookAdAccountId: { type: "string", custom: (value) => /^act_\d+$/.test(value) },
 }, "query");
+
+export const validateCampaignClientAssignment = validateObject({
+  clientId: { required: (req) => req.body.clientId !== null, custom: (value) => value === null || (typeof value === "string" && isObjectId(value)) },
+});
