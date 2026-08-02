@@ -131,6 +131,22 @@ export interface AdRequest {
   contentLink?: string;
   status: RequestStatus;
   agencyNote?: string;
+  rejectionReason?: string;
+  submittedBy?: Pick<UserAccount, "_id" | "name">;
+  reviewedBy?: Pick<UserAccount, "_id" | "name"> | null;
+  reviewedAt?: string | null;
+  approvedAt?: string | null;
+  launchedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActivityLog {
+  _id: string;
+  actor?: Pick<UserAccount, "_id" | "name">;
+  action: string;
+  detail: string;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 

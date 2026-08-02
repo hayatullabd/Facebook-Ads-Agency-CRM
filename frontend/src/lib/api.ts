@@ -38,10 +38,10 @@ async function parseResponse(response: Response): Promise<unknown> {
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("adflow_token");
+  const requestUrl = `${API_BASE_URL}${path}`;
   let response: Response;
-
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(requestUrl, {
       ...options,
       headers: {
         ...(options.body ? { "Content-Type": "application/json" } : {}),
