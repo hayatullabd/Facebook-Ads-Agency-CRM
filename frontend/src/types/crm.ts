@@ -23,6 +23,21 @@ export interface FacebookAdAccount {
   lastSeenAt?: string;
   isAccessible: boolean;
 }
+export type FacebookSyncJobStatus = "queued" | "running" | "success" | "partial" | "failed";
+export type FacebookSyncJobStage = "queued" | "discovery" | "accounts" | "complete";
+export interface FacebookSyncError { message: string; category: string; retryable: boolean }
+export interface FacebookSyncAccountDiagnostic {
+  accountId: string; name: string; currency?: string; status: "pending" | "running" | "success" | "failed";
+  campaignCount: number | null; insightCount: number | null; matchedCount: number; modifiedCount: number;
+  upsertedCount: number; staleCount: number; error: FacebookSyncError | null; startedAt?: string | null; completedAt?: string | null;
+}
+export interface FacebookSyncJob {
+  id: string; agency: string; provider: "facebook"; kind: "full" | "retry"; parent: string | null;
+  status: FacebookSyncJobStatus; stage: FacebookSyncJobStage;
+  progress: { total: number; completed: number; succeeded: number; failed: number; percent: number };
+  accounts: FacebookSyncAccountDiagnostic[]; error: FacebookSyncError | null; requestedBy: string;
+  createdAt: string; startedAt: string | null; completedAt: string | null; updatedAt: string;
+}
 export interface FacebookSyncResult {
   synced: boolean;
   mode: string;

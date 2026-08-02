@@ -38,6 +38,7 @@ function selectedResultFromActions(actions) {
 function safeGraphError(status, payload) {
   const graphCode = Number(payload?.error?.code);
   if (graphCode === 190 || status === 401) return new GraphApiError(502, "Facebook access token is invalid or expired", "invalid-token");
+  if (status === 429 || [4, 17, 32, 613].includes(graphCode)) return new GraphApiError(502, "Facebook Graph API rate limit reached; please try again later", "rate-limit");
   if (status === 403) return new GraphApiError(502, "Facebook access is insufficient", "permission");
   if (status >= 500) return new GraphApiError(502, "Facebook Graph API is temporarily unavailable", "temporary");
   return new GraphApiError(502, "Facebook Graph API request failed");
@@ -62,9 +63,6 @@ async function graphRequest(input, accessToken, method = "GET") {
   let payload;
   try { payload = text ? JSON.parse(text) : {}; } catch { throw new GraphApiError(502, "Facebook Graph API returned an invalid response"); }
   if (!response.ok || payload?.error) {
-    // #region debug-point C-E:graph-error-mapping
-    fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "facebook-token-save-500", runId: "pre-fix", hypothesisId: "C-E", location: "backend/src/services/facebookOverview.service.js:graphRequest", msg: "[DEBUG] Meta response mapped to application error", data: { httpStatus: response.status, graphCode: Number(payload?.error?.code) || null, graphType: payload?.error?.type || null }, ts: Date.now() }) }).catch(() => {});
-    // #endregion
     throw safeGraphError(response.status, payload);
   }
   return payload;
@@ -110,6 +108,25 @@ export async function discoverFacebookAdAccounts(accessToken) {
   return discovered.map((account) => accountDto({ ...account, lastSeenAt: now })).filter((account) => account.facebookAdAccountId);
 }
 
+export async function syncFacebookAccount(agencyId, account, accessToken) {
+  try {
+    return await syncAccount(agencyId, account, accessToken);
+  } catch (error) {
+    return {
+      account: account.facebookAdAccountId,
+      accountName: account.name,
+      campaignCount: null,
+      insightCount: null,
+      matchedCount: 0,
+      modifiedCount: 0,
+      upsertedCount: 0,
+      staleCount: 0,
+      status: "failed",
+      error: { message: error instanceof ApiError ? error.message : "Facebook account sync failed", category: error.category || "request", retryable: ["temporary", "timeout", "rate-limit"].includes(error.category) },
+    };
+  }
+}
+
 async function syncAccount(agencyId, account, accessToken) {
   const accountId = account.facebookAdAccountId;
   const [campaigns, insights] = await Promise.all([
@@ -144,15 +161,26 @@ async function syncAccount(agencyId, account, accessToken) {
             budget: budgetFromCampaign(row, account.currency || "USD"),
             performance: { spend, reach: number(insight.reach), impressions: number(insight.impressions), results: selectedResult.value, resultMetric: selectedResult.metric, costPerResult: selectedResult.value ? spend / selectedResult.value : 0, lastSyncedAt: now },
           },
-          $setOnInsert: { agency: agencyId, source: "facebook", facebookCampaignId: id, facebookAdAccountId: accountId, platform: "facebook", objective: row.objective || "", status: campaignStatus(row.effective_status) },
+          $setOnInsert: { agency: agencyId, source: "facebook", facebookCampaignId: id, facebookAdAccountId: accountId, platform: "facebook", objective: row.objective || "" },
         },
         upsert: true,
       },
     });
   }
-  if (operations.length) await Campaign.bulkWrite(operations, { ordered: false });
-  await Campaign.updateMany({ agency: agencyId, source: "facebook", facebookAdAccountId: accountId, facebookCampaignId: { $nin: seenIds } }, { $set: { isStale: true } });
-  return { account: accountId, accountName: account.name, campaignCount: seenIds.length, status: "success" };
+  let writeResult = { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 };
+  if (operations.length) writeResult = await Campaign.bulkWrite(operations, { ordered: false });
+  const staleResult = await Campaign.updateMany({ agency: agencyId, source: "facebook", facebookAdAccountId: accountId, facebookCampaignId: { $nin: seenIds }, isStale: { $ne: true } }, { $set: { isStale: true } });
+  return {
+    account: accountId,
+    accountName: account.name,
+    campaignCount: seenIds.length,
+    insightCount: insights.length,
+    matchedCount: writeResult.matchedCount || 0,
+    modifiedCount: writeResult.modifiedCount || 0,
+    upsertedCount: writeResult.upsertedCount || 0,
+    staleCount: staleResult.modifiedCount || 0,
+    status: "success",
+  };
 }
 
 async function mapWithConcurrency(items, concurrency, worker) {
@@ -187,10 +215,7 @@ export async function syncFacebookInsightsForAgency(agencyId) {
   credential.adAccounts = [...discovered, ...inaccessible];
   credential.lastAccountSyncAt = now;
   credential.lastVerifiedAt = now;
-  const results = await mapWithConcurrency(discovered, env.facebookSyncConcurrency, async (account) => {
-    try { return await syncAccount(agencyId, account, token); }
-    catch (error) { return { account: account.facebookAdAccountId, accountName: account.name, campaignCount: 0, status: "failed", error: error instanceof ApiError ? error.message : "Facebook account sync failed" }; }
-  });
+  const results = await mapWithConcurrency(discovered, env.facebookSyncConcurrency, (account) => syncFacebookAccount(agencyId, account, token));
   credential.lastSyncAt = now;
   credential.lastSyncStatus = results.length > 0 && results.every((item) => item.status === "success") ? "success" : results.some((item) => item.status === "success") ? "partial" : "failed";
   credential.apiUsage = { ...credential.apiUsage?.toObject?.(), callsUsed: (credential.apiUsage?.callsUsed || 0) + 1, callsLimit: credential.apiUsage?.callsLimit || 200, resetAt: credential.apiUsage?.resetAt || null };

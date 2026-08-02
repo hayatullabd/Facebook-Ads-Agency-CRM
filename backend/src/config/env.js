@@ -61,5 +61,8 @@ export const env = {
   facebookGraphVersion,
   facebookSyncMaxPages: parseBoundedInteger("FACEBOOK_SYNC_MAX_PAGES", 50, 1, 200),
   facebookSyncConcurrency: parseBoundedInteger("FACEBOOK_SYNC_CONCURRENCY", 2, 1, 5),
+  facebookSyncLeaseMs: parseBoundedInteger("FACEBOOK_SYNC_LEASE_MS", 120000, 30000, 600000),
+  facebookSyncWorkerPollMs: parseBoundedInteger("FACEBOOK_SYNC_WORKER_POLL_MS", 2000, 500, 30000),
+  facebookSyncRetentionDays: parseBoundedInteger("FACEBOOK_SYNC_RETENTION_DAYS", 90, 1, 365),
   shutdownTimeoutMs: parseBoundedInteger("SHUTDOWN_TIMEOUT_MS", 10000, 1000, 120000),
 };

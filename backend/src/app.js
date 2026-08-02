@@ -9,6 +9,7 @@ import { apiRateLimiter } from "./middlewares/apiRateLimiter.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { securityHeaders } from "./middlewares/securityHeaders.middleware.js";
 import { runtimeState } from "./services/runtimeState.service.js";
+import { startFacebookSyncWorker } from "./services/facebookSyncJob.service.js";
 import routes from "./routes/index.js";
 
 const app = express();
@@ -62,6 +63,8 @@ app.use(errorMiddleware);
 export const startServer = async () => {
   await connectDB();
   runtimeState.markReady();
+  try { startFacebookSyncWorker(); }
+  catch (error) { console.error("Facebook sync worker failed to start:", error?.message || "unknown error"); }
   return app;
 };
 

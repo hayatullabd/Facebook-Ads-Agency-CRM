@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { env } from "./config/env.js";
 import app, { startServer } from "./app.js";
 import { runtimeState } from "./services/runtimeState.service.js";
+import { stopFacebookSyncWorker } from "./services/facebookSyncJob.service.js";
 
 let server;
 let shutdownPromise;
@@ -24,6 +25,7 @@ const shutdown = (reason, exitCode) => {
         if (typeof server.closeIdleConnections === "function") server.closeIdleConnections();
         await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
       }
+      await stopFacebookSyncWorker();
       await mongoose.disconnect();
       clearTimeout(deadline);
       process.exit(exitCode);

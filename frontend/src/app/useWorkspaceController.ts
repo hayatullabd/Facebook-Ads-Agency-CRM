@@ -35,6 +35,7 @@ export function useWorkspaceController(agencyId: string, role: Role) {
 
     setErrors(nextErrors);
     setLoading(false);
+    return results.every((result) => result.status === "fulfilled");
   }, [agencyId, role]);
 
   useEffect(() => {
