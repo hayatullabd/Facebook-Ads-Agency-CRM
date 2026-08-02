@@ -44,7 +44,7 @@ function safeGraphError(status, payload) {
 }
 async function graphRequest(input, accessToken, method = "GET") {
   const url = new URL(input.startsWith("http") ? input : `${GRAPH_API_BASE_URL}/${input.replace(/^\//, "")}`);
-  if (url.protocol !== "https:" || url.hostname !== GRAPH_HOST || (input.startsWith("http") && !url.pathname.startsWith(`/${env.facebookGraphVersion}/`))) {
+  if (url.protocol !== "https:" || url.hostname !== GRAPH_HOST) {
     throw new GraphApiError(502, "Invalid Facebook pagination URL");
   }
   let response;
