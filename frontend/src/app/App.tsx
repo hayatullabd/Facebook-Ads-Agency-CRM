@@ -124,9 +124,9 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
         {screen === "dashboard" && <DashboardPage clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
         {screen === "clients" && <ClientsPage clients={data.clients} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
         {screen === "requests" && <RequestsPage clients={data.clients} requests={data.requests} role={session.user.role} currentClient={session.user.client} onCreateRequest={(payload) => mutate(() => createAdRequest(agency, payload))} onUpdateStatus={(id, status: RequestStatus) => mutate(() => updateRequestStatus(agency, id, { status }))} />}
-        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} role={session.user.role} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} />}
+        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} role={session.user.role} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} />}
         {screen === "billing" && <BillingPage invoices={data.invoices} role={session.user.role} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} />}
-        {screen === "settings" && <SettingsPage agencyId={agency} />}
+        {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} />}
         {screen === "updates" && <Updates updates={data.updates} />}
         {screen === "users" && <UsersPage users={data.users} clients={data.clients} currentRole={session.user.role} currentClient={session.user.client} onCreateUser={(payload) => mutate(() => createUser(agency, payload))} onRemoveUser={(id) => mutate(() => removeUser(agency, id))} />}
       </Suspense>

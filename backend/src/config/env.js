@@ -45,6 +45,9 @@ if (isProduction && !configuredClientUrl) throw new Error("CLIENT_URL is require
 const clientUrls = parseClientOrigins(clientUrl);
 if (isProduction && clientUrls.length === 0) throw new Error("CLIENT_URL must include at least one origin in production");
 
+const facebookGraphVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim() || "v20.0";
+if (!/^v\d+\.\d+$/.test(facebookGraphVersion)) throw new Error("FACEBOOK_GRAPH_VERSION must use the format v20.0");
+
 export const env = {
   nodeEnv,
   isProduction,
@@ -55,5 +58,8 @@ export const env = {
   mongodbUri,
   trustProxy: process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1",
   facebookRequestTimeoutMs: parseBoundedInteger("FACEBOOK_REQUEST_TIMEOUT_MS", 15000, 1000, 120000),
+  facebookGraphVersion,
+  facebookSyncMaxPages: parseBoundedInteger("FACEBOOK_SYNC_MAX_PAGES", 50, 1, 200),
+  facebookSyncConcurrency: parseBoundedInteger("FACEBOOK_SYNC_CONCURRENCY", 2, 1, 5),
   shutdownTimeoutMs: parseBoundedInteger("SHUTDOWN_TIMEOUT_MS", 10000, 1000, 120000),
 };

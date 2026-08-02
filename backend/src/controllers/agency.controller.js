@@ -1,6 +1,6 @@
 import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
-import { getFacebookOverviewForAgency, syncFacebookInsightsForAgency } from "../services/facebookOverview.service.js";
+import { discoverFacebookAdAccounts, disconnectFacebookForAgency, getFacebookAccountsForAgency, getFacebookOverviewForAgency, syncFacebookInsightsForAgency } from "../services/facebookOverview.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -20,19 +20,20 @@ export const updateAgency = asyncHandler(async (req, res) => {
 });
 
 export const saveFacebookCredential = asyncHandler(async (req, res) => {
-  const { accessToken, defaultAdAccountId } = req.body;
+  const accessToken = req.body.accessToken.trim();
+  const defaultAdAccountId = req.body.defaultAdAccountId
+    ? `act_${req.body.defaultAdAccountId.replace(/^act_/, "")}`
+    : "";
+  const adAccounts = await discoverFacebookAdAccounts(accessToken);
+  if (defaultAdAccountId && !adAccounts.some((account) => account.facebookAdAccountId === defaultAdAccountId)) {
+    throw new ApiError(400, "Default Facebook ad account is not accessible with this token");
+  }
+  const now = new Date();
   const credential = await ApiCredential.findOneAndUpdate(
     { agency: req.params.agencyId },
-    {
-      accessToken,
-      defaultAdAccountId,
-      agency: req.params.agencyId,
-      provider: "facebook",
-      isConnected: Boolean(accessToken && defaultAdAccountId),
-      lastVerifiedAt: new Date(),
-    },
+    { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
     { new: true, upsert: true, runValidators: true }
-  );
+  ).select("-accessToken");
 
   res.json(new ApiResponse(200, credential, "Facebook API settings saved"));
 });
@@ -46,4 +47,15 @@ export const getFacebookOverview = asyncHandler(async (req, res) => {
 export const syncFacebookOverview = asyncHandler(async (req, res) => {
   const result = await syncFacebookInsightsForAgency(req.params.agencyId);
   res.json(new ApiResponse(200, result, result.message));
+});
+
+export const getFacebookAccounts = asyncHandler(async (req, res) => {
+  const clientId = ["client", "moderator"].includes(req.user.role) ? req.user.client : null;
+  const accounts = await getFacebookAccountsForAgency(req.params.agencyId, clientId);
+  res.json(new ApiResponse(200, accounts));
+});
+
+export const disconnectFacebook = asyncHandler(async (req, res) => {
+  const result = await disconnectFacebookForAgency(req.params.agencyId, req.body.revokeRemote === true);
+  res.json(new ApiResponse(200, result, result.remoteRevoked ? "Facebook access revoked and disconnected" : "Facebook disconnected locally"));
 });

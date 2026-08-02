@@ -11,6 +11,7 @@ const pickCampaignFields = (body) => Object.fromEntries(
 export const getCampaigns = asyncHandler(async (req, res) => {
   const query = { agency: req.params.agencyId };
   if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;
+  if (req.query.facebookAdAccountId) query.facebookAdAccountId = req.query.facebookAdAccountId;
   const campaigns = await Campaign.find(query).populate("client adRequest").sort({ createdAt: -1 });
   res.json(new ApiResponse(200, campaigns));
 });

@@ -12,6 +12,23 @@ export interface AgencyProfile {
   defaultCurrency: "BDT" | "USD" | "INR";
   defaultRate: number;
 }
+export interface FacebookAdAccount {
+  facebookAdAccountId: string;
+  accountId: string;
+  name: string;
+  accountStatus?: number | null;
+  currency?: string;
+  timezoneName?: string;
+  lastSeenAt?: string;
+  isAccessible: boolean;
+}
+export interface FacebookSyncResult {
+  synced: boolean;
+  mode: string;
+  message: string;
+  accounts: Array<{ account: string; accountName?: string; campaignCount: number; status: "success" | "failed"; error?: string }>;
+  overview: FacebookOverview;
+}
 export interface FacebookOverview {
   agency: {
     id: string;
@@ -22,9 +39,13 @@ export interface FacebookOverview {
     status: "connected" | "demo" | "not-connected";
     isConnected: boolean;
     adAccountId: string;
+    accountCount: number;
+    accounts: FacebookAdAccount[];
     tokenConfigured: boolean;
     lastVerifiedAt: string | null;
     lastSyncAt: string | null;
+    lastAccountSyncAt: string | null;
+    lastSyncStatus: "never" | "success" | "partial" | "failed";
     graphApiReady: boolean;
     graphApi: {
       baseUrl: string;
@@ -116,11 +137,20 @@ export interface Campaign {
   _id: string;
   name: string;
   client?: Client;
+  source: "crm" | "facebook";
+  facebookCampaignId?: string;
+  facebookAdAccountId?: string;
+  facebookAdAccountName?: string;
+  facebookStatus?: string;
+  effectiveStatus?: string;
+  facebookObjective?: string;
+  isStale?: boolean;
+  lastSeenAt?: string;
   platform: AdPlatform;
   objective: string;
   status: "draft" | "scheduled" | "active" | "paused" | "completed" | "failed";
-  budget: { amount: number; type: "daily" | "lifetime"; currency: string };
-  performance: { spend: number; reach: number; impressions: number; results: number; costPerResult: number };
+  budget: { amount: number | null; type: "daily" | "lifetime" | null; currency: string };
+  performance: { spend: number; reach: number; impressions: number; results: number; resultMetric?: string; costPerResult: number };
 }
 
 export interface Invoice {

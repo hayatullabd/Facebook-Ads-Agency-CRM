@@ -8,3 +8,6 @@ export const validateCampaignCreate = validateObject({
   objective: { required: true, type: "string", minLength: 1 },
 });
 export const validateCampaignUpdate = validateObject({ status: { type: "string", enum: ["draft", "scheduled", "active", "paused", "completed", "failed"] } });
+export const validateFacebookCampaignQuery = validateObject({
+  facebookAdAccountId: { type: "string", custom: (value) => /^act_\d+$/.test(value) },
+}, "query");

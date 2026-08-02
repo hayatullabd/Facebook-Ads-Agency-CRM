@@ -1,5 +1,5 @@
 import { apiRequest } from "../lib/api";
-import type { AdRequest, Campaign, Client, ClientUpdate, FacebookOverview, Invoice, Role, UserAccount } from "../types/crm";
+import type { AdRequest, Campaign, Client, ClientUpdate, FacebookAdAccount, FacebookOverview, Invoice, Role, UserAccount } from "../types/crm";
 
 export interface WorkspaceData {
   clients: Client[];
@@ -9,6 +9,7 @@ export interface WorkspaceData {
   updates: ClientUpdate[];
   users: UserAccount[];
   facebook: FacebookOverview | null;
+  facebookAccounts: FacebookAdAccount[];
 }
 
 export type WorkspaceResource = keyof WorkspaceData;
@@ -24,6 +25,7 @@ export function getWorkspaceRequests(agencyId: string, role: Role): WorkspaceRes
     { key: "updates", load: () => apiRequest<ClientUpdate[]>(`/updates/${agencyId}`) },
     { key: "users", load: () => apiRequest<UserAccount[]>(`/users/${agencyId}`) },
     { key: "facebook", load: () => apiRequest<FacebookOverview>(`/agency/${agencyId}/facebook-overview`) },
+    { key: "facebookAccounts", load: () => apiRequest<FacebookAdAccount[]>(`/agency/${agencyId}/facebook-accounts`) },
   ];
 
   if (role !== "moderator") {

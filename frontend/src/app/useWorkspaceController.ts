@@ -10,6 +10,7 @@ const emptyWorkspace: WorkspaceData = {
   updates: [],
   users: [],
   facebook: null,
+  facebookAccounts: [],
 };
 
 export function useWorkspaceController(agencyId: string, role: Role) {
