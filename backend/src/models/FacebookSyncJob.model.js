@@ -34,6 +34,7 @@ const facebookSyncJobSchema = new mongoose.Schema({
   leaseOwner: { type: String, default: null },
   leaseToken: { type: String, default: null },
   claimVersion: { type: Number, default: 0 },
+  credentialGeneration: { type: Number, min: 0, default: 0 },
   leaseExpiresAt: { type: Date, default: null },
   heartbeatAt: { type: Date, default: null },
   startedAt: { type: Date, default: null },

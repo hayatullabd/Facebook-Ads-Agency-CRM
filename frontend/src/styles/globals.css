@@ -28,10 +28,8 @@
 }
 
 @media (max-width: 767px) {
-  .crm-responsive-table { overflow-x: visible; }
-  .crm-responsive-table table { table-layout: auto; }
-  .crm-responsive-table th:nth-child(n+4):not(:last-child),
-  .crm-responsive-table td:nth-child(n+4):not(:last-child) { display: none; }
+  .crm-responsive-table { overflow-x: auto; }
+  .crm-responsive-table table { min-width: 680px; }
   .crm-responsive-table th,
   .crm-responsive-table td { padding-left: 0.75rem; padding-right: 0.75rem; }
 }

@@ -29,7 +29,7 @@ export function getWorkspaceRequests(agencyId: string, role: Role): WorkspaceRes
   ];
 
   if (role !== "moderator") {
-    requests.push({ key: "invoices", load: () => apiRequest<Invoice[]>(`/invoices/${agencyId}`) });
+    requests.push({ key: "invoices", load: () => request<Invoice[]>(`/invoices/${agencyId}`) });
   }
 
   if (["admin", "team", "client", "moderator"].includes(role)) {

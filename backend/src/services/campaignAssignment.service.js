@@ -1,4 +1,8 @@
 import ApiCredential from "../models/ApiCredential.model.js";
+import AdRequest from "../models/AdRequest.model.js";
+import ClientUpdate from "../models/ClientUpdate.model.js";
+import Invoice from "../models/Invoice.model.js";
+import User from "../models/User.model.js";
 import Campaign from "../models/Campaign.model.js";
 import Client from "../models/Client.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -69,9 +73,15 @@ export async function setCampaignClientAssignment({ agencyId, campaignId, client
 export async function deleteClientAndDetachFacebookCampaigns(agencyId, clientId) {
   const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("_id");
   if (!client) throw new ApiError(404, "Client not found");
-  await Campaign.updateMany(
-    { agency: agencyId, client: clientId, source: "facebook" },
-    { $set: { client: null } }
-  );
+  const [adRequest, invoice, update, user, campaign] = await Promise.all([
+    AdRequest.exists({ agency: agencyId, client: clientId }),
+    Invoice.exists({ agency: agencyId, client: clientId }),
+    ClientUpdate.exists({ agency: agencyId, client: clientId }),
+    User.exists({ agency: agencyId, client: clientId }),
+    Campaign.exists({ agency: agencyId, client: clientId }),
+  ]);
+  if (adRequest || invoice || update || user || campaign) {
+    throw new ApiError(409, "Client cannot be deleted while linked requests, invoices, updates, users, or campaigns exist");
+  }
   await Client.deleteOne({ _id: clientId, agency: agencyId });
 }

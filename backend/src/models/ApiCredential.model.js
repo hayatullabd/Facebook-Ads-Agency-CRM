@@ -19,6 +19,7 @@ const apiCredentialSchema = new mongoose.Schema(
     agency: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", required: true, unique: true, index: true },
     provider: { type: String, enum: ["facebook"], default: "facebook" },
     accessToken: { type: String, default: "", select: false },
+    credentialGeneration: { type: Number, min: 0, default: 0 },
     defaultAdAccountId: { type: String, trim: true, default: "" },
     adAccounts: { type: [adAccountSnapshotSchema], default: [] },
     permissions: [{ type: String, trim: true }],

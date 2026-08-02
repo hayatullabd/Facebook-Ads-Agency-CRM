@@ -17,6 +17,7 @@ const campaignSchema = new mongoose.Schema(
     effectiveStatus: { type: String, trim: true, default: "" },
     facebookObjective: { type: String, trim: true, default: "" },
     lastSeenAt: { type: Date, default: null },
+    syncRunId: { type: String, default: "", index: true },
     isStale: { type: Boolean, default: false, index: true },
     name: { type: String, required: true, trim: true, maxlength: 180 },
     platform: { type: String, enum: ["facebook", "instagram", "both"], required: true },

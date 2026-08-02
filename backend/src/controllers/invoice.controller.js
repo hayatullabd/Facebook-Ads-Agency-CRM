@@ -1,4 +1,5 @@
 import Invoice from "../models/Invoice.model.js";
+import { validateClientAndRequest } from "../utils/validateTenantRelations.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -17,6 +18,7 @@ export const getInvoices = asyncHandler(async (req, res) => {
 });
 
 export const createInvoice = asyncHandler(async (req, res) => {
+  await validateClientAndRequest({ agencyId: req.params.agencyId, clientId: req.body.client, adRequestId: req.body.adRequest });
   const invoice = await Invoice.create({
     ...pickInvoiceFields(req.body),
     agency: req.params.agencyId,

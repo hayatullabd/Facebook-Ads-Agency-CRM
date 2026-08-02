@@ -8,7 +8,7 @@ export const validateAgencyUpdate = validateObject({
   onboardingCompleted: { type: "boolean" },
 });
 export const validateFacebookCredential = validateObject({
-  accessToken: { required: true, type: "string", minLength: 1, maxLength: 4096 },
+  accessToken: { type: "string", minLength: 1, maxLength: 4096 },
   defaultAdAccountId: { type: "string", custom: (value) => !value || /^act_\d+$/.test(value) || /^\d+$/.test(value) },
 });
 export const validateFacebookDisconnect = validateObject({

@@ -1,5 +1,5 @@
 import { apiRequest } from "../../lib/api";
-import type { ActivityLog, AdPlatform, AdRequest, RequestStatus } from "../../types/crm";
+import type { ActivityLog, AdRequest, AdRequestPlatform, RequestStatus } from "../../types/crm";
 
 export interface AdRequestPayload {
   client?: string;

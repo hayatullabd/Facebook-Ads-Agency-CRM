@@ -64,13 +64,16 @@ export function RequestsPage({ agencyId, requests, clients, role, currentClient,
     finally { setSaving(false); }
   };
   const openDetails = async (request: AdRequest) => {
+    const generation = ++detailsGeneration.current;
     setDetails(request); setActivity([]); setDetailsLoading(true); setError("");
     try {
       const [fullRequest, logs] = await Promise.all([getAdRequest(agencyId, request._id), getAdRequestActivity(agencyId, request._id)]);
+      if (generation !== detailsGeneration.current) return;
       setDetails(fullRequest); setActivity(logs);
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not load request details"); }
-    finally { setDetailsLoading(false); }
+    } catch (err) { if (generation === detailsGeneration.current) setError(err instanceof Error ? err.message : "Could not load request details"); }
+    finally { if (generation === detailsGeneration.current) setDetailsLoading(false); }
   };
+  const closeDetails = () => { detailsGeneration.current += 1; setDetails(null); setActivity([]); setDetailsLoading(false); };
   const confirmDelete = async () => {
     if (!deleting) return; setSaving(true); setError("");
     try { await onDeleteRequest(deleting._id); setDeleting(null); }

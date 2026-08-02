@@ -6,6 +6,7 @@ import Invoice from "../models/Invoice.model.js";
 import Client from "../models/Client.model.js";
 import { getClientCampaignVisibility } from "./campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
+import { decryptFacebookToken } from "../utils/facebookTokenCrypto.js";
 
 const GRAPH_HOST = "graph.facebook.com";
 const GRAPH_API_BASE_URL = `https://${GRAPH_HOST}/${env.facebookGraphVersion}`;
@@ -108,10 +109,11 @@ export async function discoverFacebookAdAccounts(accessToken) {
   return discovered.map((account) => accountDto({ ...account, lastSeenAt: now })).filter((account) => account.facebookAdAccountId);
 }
 
-export async function syncFacebookAccount(agencyId, account, accessToken) {
+export async function syncFacebookAccount(agencyId, account, accessToken, syncContext = {}) {
   try {
-    return await syncAccount(agencyId, account, accessToken);
+    return await syncAccount(agencyId, account, accessToken, syncContext);
   } catch (error) {
+    if (error?.name === "LeaseLostError") throw error;
     return {
       account: account.facebookAdAccountId,
       accountName: account.name,
@@ -127,7 +129,7 @@ export async function syncFacebookAccount(agencyId, account, accessToken) {
   }
 }
 
-async function syncAccount(agencyId, account, accessToken) {
+async function syncAccount(agencyId, account, accessToken, { syncRunId = null, assertCurrent = async () => {} } = {}) {
   const accountId = account.facebookAdAccountId;
   const [campaigns, insights] = await Promise.all([
     fetchAll(`/${accountId}/campaigns?fields=${CAMPAIGN_FIELDS}`, accessToken),
@@ -154,6 +156,8 @@ async function syncAccount(agencyId, account, accessToken) {
             facebookObjective: row.objective || "",
             facebookStatus: row.status || "",
             effectiveStatus: row.effective_status || "",
+            status: campaignStatus(row.effective_status),
+            syncRunId,
             lastSeenAt: now,
             isStale: false,
             startDate: row.start_time || null,
@@ -169,7 +173,8 @@ async function syncAccount(agencyId, account, accessToken) {
   }
   let writeResult = { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 };
   if (operations.length) writeResult = await Campaign.bulkWrite(operations, { ordered: false });
-  const staleResult = await Campaign.updateMany({ agency: agencyId, source: "facebook", facebookAdAccountId: accountId, facebookCampaignId: { $nin: seenIds }, isStale: { $ne: true } }, { $set: { isStale: true } });
+  await assertCurrent();
+  const staleResult = await Campaign.updateMany({ agency: agencyId, source: "facebook", facebookAdAccountId: accountId, syncRunId: { $ne: syncRunId }, facebookCampaignId: { $nin: seenIds }, isStale: { $ne: true } }, { $set: { isStale: true } });
   return {
     account: accountId,
     accountName: account.name,
@@ -199,7 +204,7 @@ async function mapWithConcurrency(items, concurrency, worker) {
 
 export async function syncFacebookInsightsForAgency(agencyId) {
   const credential = await ApiCredential.findOne({ agency: agencyId }).select("+accessToken");
-  const token = credential?.accessToken?.trim() || "";
+  const token = decryptFacebookToken(credential?.accessToken || "").trim();
   if (!credential || !token || !credential.isConnected || (credential.tokenExpiresAt && credential.tokenExpiresAt <= new Date())) return { synced: false, mode: "not-connected", message: "Connect Facebook before syncing all ad accounts.", overview: await getFacebookOverviewForAgency(agencyId), accounts: [] };
   let discovered;
   try {
@@ -266,11 +271,17 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
     }
   }
   credential.accessToken = "";
+  credential.credentialGeneration += 1;
   credential.isConnected = false;
   credential.defaultAdAccountId = "";
   credential.tokenExpiresAt = null;
   credential.lastVerifiedAt = null;
   await credential.save();
+  const now = new Date();
+  await FacebookSyncJob.updateMany(
+    { agency: agencyId, status: { $in: ["queued", "running"] } },
+    { $set: { status: "failed", stage: "complete", completedAt: now, error: { message: "Facebook disconnected", category: "credential", retryable: false }, leaseOwner: null, leaseToken: null, leaseExpiresAt: null } }
+  );
   return { disconnected: true, remoteRevoked };
 }
 

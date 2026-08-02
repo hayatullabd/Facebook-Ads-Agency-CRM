@@ -22,7 +22,8 @@ export const authRateLimiter = (req, res, next) => {
     requestsSinceCleanup = 0;
   }
 
-  const key = `${req.ip}:${req.baseUrl}${req.path}`;
+  const normalizedEmail = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase().slice(0, 254) : "anonymous";
+  const key = `${req.ip}:${req.baseUrl}${req.path}:${normalizedEmail}`;
   let entry = attempts.get(key);
 
   if (!entry || entry.resetAt <= now) {

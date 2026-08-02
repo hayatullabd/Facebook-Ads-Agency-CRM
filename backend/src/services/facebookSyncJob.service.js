@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import FacebookSyncJob from "../models/FacebookSyncJob.model.js";
 import { ApiError } from "../utils/ApiError.js";
+import { decryptFacebookToken } from "../utils/facebookTokenCrypto.js";
 import { discoverFacebookAdAccounts, syncFacebookAccount } from "./facebookOverview.service.js";
 
 const ACTIVE = ["queued", "running"];
@@ -112,7 +113,7 @@ async function claimJob() {
 }
 
 function leaseFilter(job, requireUnexpired = true) {
-  const filter = { _id: job._id, status: "running", leaseOwner: workerId, leaseToken: job.leaseToken };
+  const filter = { _id: job._id, status: "running", leaseOwner: workerId, leaseToken: job.leaseToken, claimVersion: job.claimVersion };
   if (requireUnexpired) filter.leaseExpiresAt = { $gt: new Date() };
   return filter;
 }
@@ -128,7 +129,7 @@ async function heartbeat(job, leaseState) {
     leaseFilter(job),
     { $set: { heartbeatAt: new Date(), leaseExpiresAt: new Date(Date.now() + env.facebookSyncLeaseMs) } },
   );
-  if (result.modifiedCount !== 1) {
+  if (result.matchedCount !== 1) {
     leaseState.lost = true;
     throw new LeaseLostError("Facebook sync lease lost");
   }
@@ -136,9 +137,9 @@ async function heartbeat(job, leaseState) {
 
 async function execute(initialJob, leaseState) {
   let job = initialJob;
-  const credential = await ApiCredential.findOne({ agency: job.agency }).select("+accessToken");
-  const token = credential?.accessToken?.trim();
-  if (!credential?.isConnected || !token || (credential.tokenExpiresAt && credential.tokenExpiresAt <= new Date())) {
+  const credential = await ApiCredential.findOne({ agency: job.agency }).select("+accessToken credentialGeneration");
+  const token = decryptFacebookToken(credential?.accessToken || "").trim();
+  if (!credential?.isConnected || !token || credential.credentialGeneration !== job.credentialGeneration || (credential.tokenExpiresAt && credential.tokenExpiresAt <= new Date())) {
     throw new ApiError(409, "Connect Facebook before starting a sync");
   }
 
@@ -149,9 +150,11 @@ async function execute(initialJob, leaseState) {
     if (!discovered.length) throw new ApiError(502, "Facebook returned no accessible ad accounts");
     const discoveredIds = new Set(discovered.map((item) => item.facebookAdAccountId));
     const inaccessible = (credential.adAccounts || []).filter((item) => !discoveredIds.has(item.facebookAdAccountId)).map((item) => ({ ...(item.toObject?.() || item), isAccessible: false }));
-    await ApiCredential.updateOne({ _id: credential._id }, { $set: {
-      adAccounts: [...discovered, ...inaccessible], lastAccountSyncAt: new Date(), lastVerifiedAt: new Date(),
-    } });
+    const credentialUpdate = await ApiCredential.updateOne(
+      { _id: credential._id, credentialGeneration: job.credentialGeneration, isConnected: true },
+      { $set: { adAccounts: [...discovered, ...inaccessible], lastAccountSyncAt: new Date(), lastVerifiedAt: new Date() } }
+    );
+    if (credentialUpdate.modifiedCount !== 1) throw new LeaseLostError("Facebook credential changed");
     const accounts = discovered.map((item) => ({ accountId: item.facebookAdAccountId, name: item.name, currency: item.currency, status: "pending" }));
     job = await fencedUpdate(job, { $set: { accounts, progress: recomputeProgress(accounts) } });
   }
@@ -164,7 +167,12 @@ async function execute(initialJob, leaseState) {
     job = await fencedUpdate(job, {
       $set: { "accounts.$[account].status": "running", "accounts.$[account].startedAt": new Date(), "accounts.$[account].completedAt": null, "accounts.$[account].error": null },
     }, { arrayFilters: [{ "account.accountId": account.accountId, "account.status": { $in: ["pending", "running"] } }] });
-    const result = await syncFacebookAccount(job.agency, { facebookAdAccountId: account.accountId, name: account.name, currency: account.currency }, token);
+    const result = await syncFacebookAccount(
+      job.agency,
+      { facebookAdAccountId: account.accountId, name: account.name, currency: account.currency },
+      token,
+      { syncRunId: String(job._id), assertCurrent: () => heartbeat(job, leaseState) },
+    );
     await heartbeat(job, leaseState);
     job = await fencedUpdate(job, {
       $set: {
@@ -187,7 +195,7 @@ async function execute(initialJob, leaseState) {
     expiresAt: new Date(now.getTime() + env.facebookSyncRetentionDays * 86400000),
     leaseOwner: null, leaseToken: null, leaseExpiresAt: null, heartbeatAt: null,
   } });
-  await ApiCredential.updateOne({ _id: credential._id }, { $set: { lastSyncAt: now, lastSyncStatus: status } });
+  await ApiCredential.updateOne({ _id: credential._id, credentialGeneration: job.credentialGeneration, isConnected: true }, { $set: { lastSyncAt: now, lastSyncStatus: status } });
   return true;
 }
 

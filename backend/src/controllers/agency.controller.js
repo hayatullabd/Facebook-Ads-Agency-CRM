@@ -4,6 +4,7 @@ import { discoverFacebookAdAccounts, disconnectFacebookForAgency, getFacebookAcc
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { decryptFacebookToken, encryptFacebookToken } from "../utils/facebookTokenCrypto.js";
 
 export const getAgency = asyncHandler(async (req, res) => {
   const agency = await Agency.findById(req.params.agencyId);
@@ -20,27 +21,28 @@ export const updateAgency = asyncHandler(async (req, res) => {
 });
 
 export const saveFacebookCredential = asyncHandler(async (req, res) => {
-  const accessToken = req.body.accessToken?.trim();
+  const existing = await ApiCredential.findOne({ agency: req.params.agencyId }).select("+accessToken credentialGeneration");
+  const suppliedToken = req.body.accessToken?.trim();
+  const accessToken = suppliedToken || decryptFacebookToken(existing?.accessToken || "");
   if (!accessToken) throw new ApiError(400, "Facebook access token is required");
   const defaultAdAccountId = req.body.defaultAdAccountId
     ? `act_${req.body.defaultAdAccountId.replace(/^act_/, "")}`
     : "";
-  let adAccounts;
-  try {
-    adAccounts = await discoverFacebookAdAccounts(accessToken);
-  } catch (error) {
-    throw error;
-  }
+  const adAccounts = await discoverFacebookAdAccounts(accessToken);
   if (defaultAdAccountId && !adAccounts.some((account) => account.facebookAdAccountId === defaultAdAccountId)) {
     throw new ApiError(400, "Default Facebook ad account is not accessible with this token");
   }
   const now = new Date();
+  const nextGeneration = (existing?.credentialGeneration || 0) + 1;
   const credential = await ApiCredential.findOneAndUpdate(
     { agency: req.params.agencyId },
-    { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
+    { $set: { accessToken: encryptFacebookToken(accessToken), credentialGeneration: nextGeneration, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
     { new: true, upsert: true, runValidators: true }
   ).select("-accessToken");
-
+  await import("../models/FacebookSyncJob.model.js").then(({ default: FacebookSyncJob }) => FacebookSyncJob.updateMany(
+    { agency: req.params.agencyId, status: { $in: ["queued", "running"] } },
+    { $set: { status: "failed", stage: "complete", completedAt: now, error: { message: "Facebook credential changed", category: "credential", retryable: false }, leaseOwner: null, leaseToken: null, leaseExpiresAt: null } }
+  ));
   res.json(new ApiResponse(200, credential, "Facebook API settings saved"));
 });
 

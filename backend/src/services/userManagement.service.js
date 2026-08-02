@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import User from "../models/User.model.js";
+import Client from "../models/Client.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { getPasswordPolicyError } from "./passwordPolicy.service.js";
 import { serializePublicUser } from "../utils/serializePublicUser.js";
@@ -15,6 +17,12 @@ export const createManagedUser = async ({ agencyId, actor, name, email, password
   const passwordError = getPasswordPolicyError(password);
   if (passwordError) throw new ApiError(400, passwordError);
   if (!canManageRole(actor, role, client)) throw new ApiError(403, "You do not have permission to create this user");
+  if (["admin", "team"].includes(role) && client) throw new ApiError(400, "This role cannot be assigned to a client");
+  if (["client", "moderator"].includes(role)) {
+    if (!client || !mongoose.isValidObjectId(client)) throw new ApiError(400, "A valid client is required for this role");
+    const ownedClient = await Client.findOne({ _id: client, agency: agencyId }).select("_id");
+    if (!ownedClient) throw new ApiError(403, "Client does not belong to this agency");
+  }
   return User.create({ agency: agencyId, client: ["client", "moderator"].includes(role) ? client : null, name, email, password, role, avatarColor: role === "team" ? "bg-emerald-600" : role === "moderator" ? "bg-amber-600" : "bg-violet-600" });
 };
 

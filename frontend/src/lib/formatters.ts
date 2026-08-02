@@ -1,6 +1,10 @@
 export const formatMoney = (value: number, currency = "BDT") => {
-  const symbol = currency === "BDT" ? "৳" : currency === "USD" ? "$" : "₹";
-  return `${symbol}${Number(value || 0).toLocaleString()}`;
+  const normalizedCurrency = /^[A-Z]{3}$/.test(currency) ? currency : "USD";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: normalizedCurrency, maximumFractionDigits: 2 }).format(Number(value || 0));
+  } catch {
+    return `${normalizedCurrency} ${Number(value || 0).toLocaleString("en-US")}`;
+  }
 };
 
 export const formatDate = (value: string) => {

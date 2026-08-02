@@ -1,4 +1,5 @@
 import ClientUpdate from "../models/ClientUpdate.model.js";
+import { validateClientAndRequest } from "../utils/validateTenantRelations.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -12,6 +13,7 @@ export const getUpdates = asyncHandler(async (req, res) => {
 
 export const createUpdate = asyncHandler(async (req, res) => {
   const { client, adRequest, type, title, content } = req.body;
+  await validateClientAndRequest({ agencyId: req.params.agencyId, clientId: client, adRequestId: adRequest });
   const update = await ClientUpdate.create({
     agency: req.params.agencyId,
     client,

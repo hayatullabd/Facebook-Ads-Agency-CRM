@@ -3,7 +3,7 @@ import type { AgencyProfile, FacebookAdAccount, FacebookOverview, FacebookSyncJo
 
 export const getAgency = (agencyId: string) => apiRequest<AgencyProfile>(`/agency/${agencyId}`);
 export const saveAgencySettings = (agencyId: string, payload: Partial<Pick<AgencyProfile, "name" | "defaultRate" | "defaultCurrency">>) => apiRequest(`/agency/${agencyId}`, { method: "PATCH", body: JSON.stringify(payload) });
-export const saveFacebookSettings = (agencyId: string, payload: { accessToken: string; defaultAdAccountId?: string }) => apiRequest(`/agency/${agencyId}/facebook`, { method: "POST", body: JSON.stringify(payload) });
+export const saveFacebookSettings = (agencyId: string, payload: { accessToken?: string; defaultAdAccountId?: string }) => apiRequest(`/agency/${agencyId}/facebook`, { method: "POST", body: JSON.stringify(payload) });
 export const getFacebookOverview = (agencyId: string) => apiRequest<FacebookOverview>(`/agency/${agencyId}/facebook-overview`);
 export const listFacebookAccounts = (agencyId: string) => apiRequest<FacebookAdAccount[]>(`/agency/${agencyId}/facebook-accounts`);
 export const enqueueFacebookSync = (agencyId: string) => apiRequest<FacebookSyncJob>(`/agency/${agencyId}/facebook-sync-jobs`, { method: "POST" });

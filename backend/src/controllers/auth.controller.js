@@ -5,7 +5,9 @@ import { serializePublicUser } from "../utils/serializePublicUser.js";
 
 export const register = asyncHandler(async (req, res) => {
   const result = await registerAccount(req.body);
-  if (result.passwordError) return res.status(400).json({ success: false, message: result.passwordError });
+  if (result.passwordError) {
+    return res.status(400).json({ success: false, message: result.passwordError });
+  }
   res.status(201).json(new ApiResponse(201, {
     user: serializePublicUser(result.user),
     agency: result.agency,

@@ -7,6 +7,10 @@ const isProduction = nodeEnv === "production";
 const jwtSecret = process.env.JWT_SECRET || (isProduction ? "" : "development-only-jwt-secret-change-me");
 const mongodbUri = process.env.MONGODB_URI;
 const configuredClientUrl = process.env.CLIENT_URL;
+const facebookTokenEncryptionKeyRaw = process.env.FACEBOOK_TOKEN_ENCRYPTION_KEY?.trim() || "";
+if (facebookTokenEncryptionKeyRaw && !/^[A-Za-z0-9+/]{43}=$/.test(facebookTokenEncryptionKeyRaw)) {
+  throw new Error("FACEBOOK_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key");
+}
 const clientUrl = configuredClientUrl || (isProduction ? "" : "http://localhost:5173");
 const placeholderSecretPattern = /^(change|replace|your|development)[-_ ]?(this[-_ ]?)?(only[-_ ]?)?(secret|jwt)/i;
 
@@ -41,6 +45,7 @@ if (!jwtSecret || (isProduction && (jwtSecret.length < 32 || placeholderSecretPa
   throw new Error("JWT_SECRET must be a non-placeholder secret of at least 32 characters in production");
 }
 if (isProduction && !configuredClientUrl) throw new Error("CLIENT_URL is required in production");
+if (isProduction && !facebookTokenEncryptionKeyRaw) throw new Error("FACEBOOK_TOKEN_ENCRYPTION_KEY is required in production");
 
 const clientUrls = parseClientOrigins(clientUrl);
 if (isProduction && clientUrls.length === 0) throw new Error("CLIENT_URL must include at least one origin in production");
@@ -56,6 +61,7 @@ export const env = {
   clientUrls,
   jwtSecret,
   mongodbUri,
+  facebookTokenEncryptionKey: facebookTokenEncryptionKeyRaw ? Buffer.from(facebookTokenEncryptionKeyRaw, "base64") : null,
   trustProxy: process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1",
   facebookRequestTimeoutMs: parseBoundedInteger("FACEBOOK_REQUEST_TIMEOUT_MS", 15000, 1000, 120000),
   facebookGraphVersion,
