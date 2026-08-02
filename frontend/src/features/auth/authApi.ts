@@ -71,5 +71,3 @@ export const getSavedSession = (): AuthResponse | null => {
     return null;
   }
 };
-
-export const getSavedUser = (): AuthUser | null => getSavedSession()?.user ?? null;

@@ -1,12 +1,17 @@
 import { Router } from "express";
 import { createClient, deleteClient, getClients, updateClient } from "../controllers/client.controller.js";
-import { validateFields } from "../middlewares/validate.middleware.js";
 import { agencyScopeMiddleware } from "../middlewares/agencyScope.middleware.js";
 import { roleMiddleware } from "../middlewares/role.middleware.js";
-const router=Router({mergeParams:true});
-router.use("/:agencyId",agencyScopeMiddleware);
-router.get("/:agencyId",getClients);
-router.post("/:agencyId",roleMiddleware("admin","team"),validateFields({name:{required:true,type:"string",minLength:2},contactName:{required:true,type:"string",minLength:2},email:{required:true,type:"string"}}),createClient);
-router.patch("/:agencyId/:clientId",roleMiddleware("admin","team"),updateClient);
-router.delete("/:agencyId/:clientId",roleMiddleware("admin","team"),deleteClient);
+import { validateClientCreate } from "../validators/client.validator.js";
+import { validateObjectIdParam } from "../validators/common.validator.js";
+
+const router = Router({ mergeParams: true });
+router.param("clientId", validateObjectIdParam);
+
+router.use("/:agencyId", agencyScopeMiddleware);
+router.get("/:agencyId", getClients);
+router.post("/:agencyId", roleMiddleware("admin", "team"), validateClientCreate, createClient);
+router.patch("/:agencyId/:clientId", roleMiddleware("admin", "team"), updateClient);
+router.delete("/:agencyId/:clientId", roleMiddleware("admin", "team"), deleteClient);
+
 export default router;

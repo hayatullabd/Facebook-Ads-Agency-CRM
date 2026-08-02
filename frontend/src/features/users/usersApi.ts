@@ -1,10 +1,6 @@
 import { apiRequest } from "../../lib/api";
 import type { Role, UserAccount } from "../../types/crm";
 
-export const getUsers = (agencyId: string) => {
-  return apiRequest<UserAccount[]>(`/users/${agencyId}`);
-};
-
 export const createUser = (agencyId: string, payload: { name: string; email: string; password: string; role: Role; client?: string }) => {
   return apiRequest<UserAccount>(`/users/${agencyId}`, {
     method: "POST",

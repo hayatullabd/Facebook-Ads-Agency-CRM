@@ -1,10 +1,13 @@
 import { Router } from "express";
 import { createAdRequest, getAdRequests, updateAdRequestStatus } from "../controllers/adRequest.controller.js";
-import { validateFields } from "../middlewares/validate.middleware.js";
+import { validateAdRequestCreate, validateAdRequestStatus } from "../validators/adRequest.validator.js";
 import { agencyScopeMiddleware } from "../middlewares/agencyScope.middleware.js";
 import { roleMiddleware } from "../middlewares/role.middleware.js";
-const router=Router({mergeParams:true});router.use("/:agencyId",agencyScopeMiddleware);
-router.get("/:agencyId",getAdRequests);
-router.post("/:agencyId",validateFields({client:{required:true,type:"string"},pageName:{required:true,type:"string",minLength:2},objectiveGroup:{required:true,type:"string"},objective:{required:true,type:"string",minLength:2},durationDays:{required:true,type:"number",min:1,max:365}}),createAdRequest);
-router.patch("/:agencyId/:requestId/status",roleMiddleware("admin","team"),updateAdRequestStatus);
+import { validateObjectIdParam } from "../validators/common.validator.js";
+const router = Router({ mergeParams: true });
+router.param("requestId", validateObjectIdParam);
+router.use("/:agencyId", agencyScopeMiddleware);
+router.get("/:agencyId", getAdRequests);
+router.post("/:agencyId", validateAdRequestCreate, createAdRequest);
+router.patch("/:agencyId/:requestId/status", roleMiddleware("admin", "team"), validateAdRequestStatus, updateAdRequestStatus);
 export default router;
