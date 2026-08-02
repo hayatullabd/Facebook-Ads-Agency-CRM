@@ -61,7 +61,12 @@ async function graphRequest(input, accessToken, method = "GET") {
   const text = await response.text();
   let payload;
   try { payload = text ? JSON.parse(text) : {}; } catch { throw new GraphApiError(502, "Facebook Graph API returned an invalid response"); }
-  if (!response.ok || payload?.error) throw safeGraphError(response.status, payload);
+  if (!response.ok || payload?.error) {
+    // #region debug-point C-E:graph-error-mapping
+    fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "facebook-token-save-500", runId: "pre-fix", hypothesisId: "C-E", location: "backend/src/services/facebookOverview.service.js:graphRequest", msg: "[DEBUG] Meta response mapped to application error", data: { httpStatus: response.status, graphCode: Number(payload?.error?.code) || null, graphType: payload?.error?.type || null }, ts: Date.now() }) }).catch(() => {});
+    // #endregion
+    throw safeGraphError(response.status, payload);
+  }
   return payload;
 }
 async function fetchAll(path, accessToken) {

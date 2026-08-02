@@ -8,7 +8,7 @@ export const errorMiddleware = (err, req, res, _next) => {
     console.error(`[${requestId}] ${req.method} ${req.originalUrl || req.path}`, err.stack || err.message || err);
   }
 
-  const message = statusCode >= 500 && env.isProduction
+  const message = statusCode >= 500 && env.isProduction && ![502, 504].includes(statusCode)
     ? "Internal Server Error"
     : (err.message || "Internal Server Error");
 

@@ -4,7 +4,7 @@ import type { ActivityLog, AdPlatform, AdRequest, RequestStatus } from "../../ty
 export interface AdRequestPayload {
   client?: string;
   pageName: string;
-  platform: AdPlatform;
+  platform: AdRequestPlatform[];
   objectiveGroup: string;
   objective: string;
   budget: { amount: number; type: "daily" | "lifetime"; currency: "USD" | "BDT" | "INR" };

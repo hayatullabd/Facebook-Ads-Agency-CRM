@@ -1,6 +1,7 @@
 export type Screen = "dashboard" | "requests" | "clients" | "campaigns" | "billing" | "settings" | "updates" | "users";
 export type Role = "client" | "team" | "admin" | "moderator";
 export type AdPlatform = "facebook" | "instagram" | "both";
+export type AdRequestPlatform = "facebook" | "instagram" | "youtube" | "google";
 export type RequestStatus = "Under Review" | "Approved" | "Live" | "Rejected";
 export type InvoiceStatus = "Unpaid" | "Paid" | "Overdue";
 
@@ -122,7 +123,7 @@ export interface AdRequest {
   requestNumber: string;
   client?: Client;
   pageName: string;
-  platform: AdPlatform;
+  platform: AdRequestPlatform | "both" | AdRequestPlatform[];
   objectiveGroup: string;
   objective: string;
   budget: { amount: number; type: "daily" | "lifetime"; currency: string };

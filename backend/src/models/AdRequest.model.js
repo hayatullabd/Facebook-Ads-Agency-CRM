@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+const CANONICAL_PLATFORMS = ["facebook", "instagram", "youtube", "google"];
+const LEGACY_PLATFORMS = ["both"];
+
+export const normalizeAdRequestPlatforms = (value) => {
+  const values = Array.isArray(value) ? value : [value];
+  return [...new Set(values.flatMap((platform) => platform === "both" ? ["facebook", "instagram"] : [platform]))];
+};
+
 const adRequestSchema = new mongoose.Schema(
   {
     agency: {
@@ -27,13 +35,20 @@ const adRequestSchema = new mongoose.Schema(
       maxlength: 150,
     },
     platform: {
-      type: String,
-      enum: ["facebook", "instagram", "both"],
+      type: mongoose.Schema.Types.Mixed,
       required: true,
+      validate: {
+        validator(value) {
+          const values = Array.isArray(value) ? value : [value];
+          return values.length > 0 && values.every((platform) => [...CANONICAL_PLATFORMS, ...LEGACY_PLATFORMS].includes(platform));
+        },
+        message: "Platform must contain valid platform values",
+      },
+      set: normalizeAdRequestPlatforms,
     },
     objectiveGroup: {
       type: String,
-      enum: ["website", "engagement", "page", "awareness", "leads"],
+      enum: ["website", "engagement", "message", "others", "page", "awareness", "leads"],
       required: true,
     },
     objective: {

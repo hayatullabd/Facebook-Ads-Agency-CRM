@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import { REQUEST_STATUSES } from "../constants/requestStatuses.js";
 import { ApiError } from "../utils/ApiError.js";
 
-const PLATFORMS = ["facebook", "instagram", "both"];
-const OBJECTIVE_GROUPS = ["website", "engagement", "page", "awareness", "leads"];
+const PLATFORMS = ["facebook", "instagram", "youtube", "google"];
+const OBJECTIVE_GROUPS = ["message", "engagement", "website", "others"];
 const BUDGET_TYPES = ["daily", "lifetime"];
 const CURRENCIES = ["USD", "BDT", "INR"];
 const CREATE_FIELDS = ["client", "pageName", "platform", "objectiveGroup", "objective", "budget", "durationDays", "notes", "contentLink"];
@@ -31,6 +31,18 @@ const validateString = (body, field, { required = false, min = 0, max, values } 
   return null;
 };
 
+const validatePlatforms = (body, required) => {
+  const value = body.platform;
+  if (value === undefined && !required) return null;
+  if (value === undefined) return "platform is required";
+  const values = Array.isArray(value) ? value : value === "both" ? ["facebook", "instagram"] : [value];
+  if (!values.length || values.some((platform) => typeof platform !== "string" || !PLATFORMS.includes(platform))) {
+    return `platform must contain only: ${PLATFORMS.join(", ")}`;
+  }
+  body.platform = values;
+  return null;
+};
+
 const validateBudget = (budget, required) => {
   if (budget === undefined && !required) return null;
   if (!budget || typeof budget !== "object" || Array.isArray(budget)) return "budget must be an object";
@@ -51,7 +63,7 @@ const validateBrief = (req, next, create) => {
   }
   const errors = [
     validateString(body, "pageName", { required: create, min: 2, max: 150 }),
-    validateString(body, "platform", { required: create, values: PLATFORMS }),
+    validatePlatforms(body, create),
     validateString(body, "objectiveGroup", { required: create, values: OBJECTIVE_GROUPS }),
     validateString(body, "objective", { required: create, min: 2, max: 100 }),
     validateString(body, "notes", { max: 2000 }),
