@@ -9,6 +9,7 @@ import updateRoutes from "./update.routes.js";
 import activityLogRoutes from "./activityLog.routes.js";
 import dashboardRoutes from "./dashboard.routes.js";
 import userRoutes from "./user.routes.js";
+import adAccountsRoutes from "./adAccounts.routes.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -24,5 +25,6 @@ router.use("/invoices", invoiceRoutes);
 router.use("/updates", updateRoutes);
 router.use("/logs", activityLogRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/ad-accounts", adAccountsRoutes);
 
 export default router;

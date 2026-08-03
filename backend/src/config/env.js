@@ -70,5 +70,10 @@ export const env = {
   facebookSyncLeaseMs: parseBoundedInteger("FACEBOOK_SYNC_LEASE_MS", 120000, 30000, 600000),
   facebookSyncWorkerPollMs: parseBoundedInteger("FACEBOOK_SYNC_WORKER_POLL_MS", 2000, 500, 30000),
   facebookSyncRetentionDays: parseBoundedInteger("FACEBOOK_SYNC_RETENTION_DAYS", 90, 1, 365),
+  facebookAdAccountCacheTtlMs: parseBoundedInteger("FACEBOOK_AD_ACCOUNT_CACHE_TTL_SECONDS", 300, 30, 3600) * 1000,
+  facebookAdAccountStaleMaxMs: parseBoundedInteger("FACEBOOK_AD_ACCOUNT_STALE_MAX_SECONDS", 3600, 60, 86400) * 1000,
+  facebookSpendCapConfirmationTtlMs: parseBoundedInteger("FACEBOOK_SPEND_CAP_CONFIRMATION_TTL_SECONDS", 300, 30, 1800) * 1000,
+  facebookSpendCapMaxMajor: process.env.FACEBOOK_SPEND_CAP_MAX_MAJOR?.trim() || "100000000",
+  facebookAdAccountMutationRetentionMs: parseBoundedInteger("FACEBOOK_AD_ACCOUNT_MUTATION_RETENTION_DAYS", 90, 1, 365) * 86400000,
   shutdownTimeoutMs: parseBoundedInteger("SHUTDOWN_TIMEOUT_MS", 10000, 1000, 120000),
 };

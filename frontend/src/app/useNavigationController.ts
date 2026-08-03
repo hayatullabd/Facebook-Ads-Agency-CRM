@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, CreditCard, FileText, LayoutDashboard, Megaphone, Settings, Shield, Users } from "lucide-react";
+import { BellRing, CreditCard, FileText, LayoutDashboard, Megaphone, Settings, Shield, Users, WalletCards } from "lucide-react";
 import type { Role, Screen } from "../types/crm";
 
 export interface NavigationItem {
@@ -16,6 +16,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "requests", label: "Requests", icon: FileText },
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    { id: "ad-accounts", label: "Ad Accounts", icon: WalletCards },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "users", label: "Users", icon: Shield },
     { id: "settings", label: "Settings", icon: Settings },
@@ -25,6 +26,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "requests", label: "Requests", icon: FileText },
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    { id: "ad-accounts", label: "Ad Accounts", icon: WalletCards },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "users", label: "Users", icon: Shield },
   ],

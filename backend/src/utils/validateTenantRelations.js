@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Client from "../models/Client.model.js";
 import AdRequest from "../models/AdRequest.model.js";
 import { ApiError } from "./ApiError.js";

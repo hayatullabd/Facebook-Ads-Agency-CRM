@@ -20,6 +20,7 @@ const DashboardPage = lazy(() => import("../features/dashboard/pages/DashboardPa
 const ClientsPage = lazy(() => import("../features/clients/pages/ClientsPage").then((module) => ({ default: module.ClientsPage })));
 const RequestsPage = lazy(() => import("../features/requests/pages/RequestsPage").then((module) => ({ default: module.RequestsPage })));
 const CampaignsPage = lazy(() => import("../features/campaigns/pages/CampaignsPage").then((module) => ({ default: module.CampaignsPage })));
+const AdAccountsPage = lazy(() => import("../features/adAccounts/pages/AdAccountsPage").then((module) => ({ default: module.AdAccountsPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
 const SettingsPage = lazy(() => import("../features/settings/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
@@ -71,7 +72,7 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
           <p className="mt-1 text-sm font-semibold capitalize text-slate-200">{role}</p>
         </div>
       </SidebarNav>
-      {open && <button className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}
+      <div className={`fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`} onClick={onClose} aria-hidden="true" />
     </>
   );
 }
@@ -125,6 +126,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
         {screen === "clients" && <ClientsPage clients={data.clients} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
         {screen === "requests" && <RequestsPage agencyId={agency} clients={data.clients} requests={data.requests} role={session.user.role} currentClient={session.user.client} onCreateRequest={(payload) => mutate(() => createAdRequest(agency, payload))} onUpdateRequest={(id, payload) => mutate(() => updateAdRequest(agency, id, payload))} onDeleteRequest={(id) => mutate(() => deleteAdRequest(agency, id))} onUpdateStatus={(id, payload) => mutate(() => updateRequestStatus(agency, id, payload))} />}
         {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} role={session.user.role} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
+        {screen === "ad-accounts" && <AdAccountsPage agencyId={agency} role={session.user.role} />}
         {screen === "billing" && <BillingPage invoices={data.invoices} role={session.user.role} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} />}
         {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} />}
         {screen === "updates" && <Updates updates={data.updates} />}

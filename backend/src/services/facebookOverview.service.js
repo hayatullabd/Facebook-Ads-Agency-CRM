@@ -14,13 +14,6 @@ const ACCOUNT_FIELDS = "id,account_id,name,account_status,currency,timezone_name
 const CAMPAIGN_FIELDS = "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,updated_time";
 const INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions";
 
-class GraphApiError extends ApiError {
-  constructor(statusCode, message, category = "request") {
-    super(statusCode, message);
-    this.category = category;
-  }
-}
-
 function normalizeAdAccountId(value) {
   const raw = String(value || "").replace(/^act_/, "");
   return /^\d+$/.test(raw) ? `act_${raw}` : "";
@@ -35,49 +28,6 @@ function selectedResultFromActions(actions) {
     if (action) return { value: number(action.value), metric: type };
   }
   return { value: 0, metric: "" };
-}
-function safeGraphError(status, payload) {
-  const graphCode = Number(payload?.error?.code);
-  if (graphCode === 190 || status === 401) return new GraphApiError(502, "Facebook access token is invalid or expired", "invalid-token");
-  if (status === 429 || [4, 17, 32, 613].includes(graphCode)) return new GraphApiError(502, "Facebook Graph API rate limit reached; please try again later", "rate-limit");
-  if (status === 403) return new GraphApiError(502, "Facebook access is insufficient", "permission");
-  if (status >= 500) return new GraphApiError(502, "Facebook Graph API is temporarily unavailable", "temporary");
-  return new GraphApiError(502, "Facebook Graph API request failed");
-}
-async function graphRequest(input, accessToken, method = "GET") {
-  const url = new URL(input.startsWith("http") ? input : `${GRAPH_API_BASE_URL}/${input.replace(/^\//, "")}`);
-  if (url.protocol !== "https:" || url.hostname !== GRAPH_HOST) {
-    throw new GraphApiError(502, "Invalid Facebook pagination URL");
-  }
-  let response;
-  try {
-    response = await fetch(url, {
-      method,
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-      signal: AbortSignal.timeout(env.facebookRequestTimeoutMs),
-    });
-  } catch (error) {
-    if (error?.name === "TimeoutError" || error?.name === "AbortError") throw new GraphApiError(504, "Facebook Graph API request timed out", "timeout");
-    throw new GraphApiError(502, "Facebook Graph API is unavailable", "temporary");
-  }
-  const text = await response.text();
-  let payload;
-  try { payload = text ? JSON.parse(text) : {}; } catch { throw new GraphApiError(502, "Facebook Graph API returned an invalid response"); }
-  if (!response.ok || payload?.error) {
-    throw safeGraphError(response.status, payload);
-  }
-  return payload;
-}
-async function fetchAll(path, accessToken) {
-  const rows = [];
-  let next = path;
-  for (let page = 0; next && page < env.facebookSyncMaxPages; page += 1) {
-    const payload = await graphRequest(next, accessToken);
-    if (Array.isArray(payload.data)) rows.push(...payload.data);
-    next = payload.paging?.next || null;
-  }
-  if (next) throw new GraphApiError(502, "Facebook pagination limit reached");
-  return rows;
 }
 function accountDto(account) {
   return {
@@ -263,7 +213,7 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
   let remoteRevoked = false;
   if (revokeRemote && credential.accessToken) {
     try {
-      await graphRequest("/me/permissions", credential.accessToken, "DELETE");
+      await graphRequest("/me/permissions", credential.accessToken, { method: "DELETE" });
       remoteRevoked = true;
     } catch (error) {
       if (error?.category !== "invalid-token") throw error;
