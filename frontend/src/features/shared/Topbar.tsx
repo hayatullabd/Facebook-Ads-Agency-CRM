@@ -1,4 +1,4 @@
-import { Command, LogOut, Menu, Search } from "lucide-react";
+import { LogOut, Menu, Search } from "lucide-react";
 
 export function Topbar({ title, role, userName, onMenu, onLogout }: { title: string; role: string; userName: string; onMenu: () => void; onLogout: () => void; }) {
   return (
