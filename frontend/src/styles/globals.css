@@ -4,7 +4,7 @@
 
 @layer base {
   html { color-scheme: dark; }
-  body { min-height: 100vh; margin: 0; background: #0d1210; color: #edf4ef; font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; }
+  body { min-height: 100vh; margin: 0; background: #080b0a; color: #edf4ef; font-family: "Instrument Sans", ui-sans-serif, system-ui, sans-serif; }
   #root { min-height: 100vh; }
   ::selection { background: #86efac; color: #102016; }
   * { scrollbar-color: #536159 transparent; }
@@ -16,23 +16,23 @@
 @layer components {
   .crm-input { @apply w-full rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-muted)] px-3 py-2 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-emerald-300/70 focus:ring-2 focus:ring-emerald-300/10; }
   .crm-label { @apply mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-[.13em] text-slate-500; }
-  .crm-table-head { @apply bg-[#0d1210] text-left font-mono text-[10px] font-medium uppercase tracking-[.13em] text-slate-500; }
+  .crm-table-head { @apply bg-[#0b0f0e] text-left font-mono text-[10px] font-medium uppercase tracking-[.13em] text-slate-500; }
   .crm-table-cell { @apply border-b border-[var(--border)] px-4 py-3 text-sm text-slate-300; }
-  .crm-icon-button { @apply inline-flex size-9 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--surface-muted)] text-slate-400 transition hover:border-emerald-300/35 hover:text-emerald-200 disabled:opacity-40; }
+  .crm-icon-button { @apply inline-flex size-9 items-center justify-center rounded-[var(--radius-sm)] border border-white/[0.1] bg-white/[0.035] text-slate-400 transition hover:border-emerald-300/35 hover:bg-white/[0.06] hover:text-emerald-200 disabled:opacity-40; }
   .crm-empty { @apply flex min-h-40 flex-col items-center justify-center gap-2 px-6 py-10 text-center text-sm text-slate-400; }
   .crm-mobile-list { @apply grid gap-3 p-3 md:hidden; }
   .crm-mobile-card { @apply rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-muted)] p-4; }
   .crm-desktop-table { @apply hidden overflow-x-auto md:block; }
-  .crm-page-title { @apply text-2xl font-semibold tracking-[-.035em] text-slate-100; }
+  .crm-page-title { @apply text-2xl font-semibold tracking-[-.025em] text-slate-100; }
   .crm-page-subtitle { @apply mt-1 text-sm text-slate-500; }
   .crm-skeleton { @apply animate-pulse rounded-[var(--radius-sm)] bg-slate-700/40; }
   .crm-overlay { animation: crm-fade-in 180ms ease-out both; }
   .crm-dialog { animation: crm-dialog-in 220ms ease-out both; }
   .crm-page-shell { @apply mx-auto w-full max-w-[1720px] space-y-5; }
   .crm-section-heading { @apply flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between; }
-  .crm-section-title { @apply text-base font-semibold tracking-[-.015em] text-slate-100; }
+  .crm-section-title { @apply text-base font-semibold tracking-[-.01em] text-slate-100; }
   .crm-section-caption { @apply text-xs leading-5 text-slate-500; }
-  .crm-glass-toolbar { @apply border border-[var(--border)] bg-[#121916]/95 shadow-[var(--shadow-sm)] backdrop-blur-xl; }
+  .crm-glass-toolbar { @apply border border-[var(--border)] bg-[#101614]/90 shadow-[var(--shadow-sm)] backdrop-blur-xl; }
   .crm-focus-ring { @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]; }
 }
 
