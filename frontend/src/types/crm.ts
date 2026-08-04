@@ -119,7 +119,6 @@ export interface Client {
   activeCampaigns: number;
   billingRate: number;
   color: string;
-  facebookAdAccountIds?: string[];
 }
 
 export interface UserAccount {

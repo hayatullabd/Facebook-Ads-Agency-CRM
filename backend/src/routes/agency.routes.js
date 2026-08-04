@@ -1,0 +1,22 @@
+import { Router } from "express";
+import { disconnectFacebook, getAgency, getFacebookAccounts, getFacebookOverview, saveFacebookCredential, updateAgency } from "../controllers/agency.controller.js";
+import { createFacebookSyncJob, getActiveFacebookSync, getFacebookSyncDetail, getFacebookSyncHistory, retryFacebookSyncAccount } from "../controllers/facebookSyncJob.controller.js";
+import { agencyScopeMiddleware } from "../middlewares/agencyScope.middleware.js";
+import { roleMiddleware } from "../middlewares/role.middleware.js";
+import { validateAgencyUpdate, validateFacebookCredential, validateFacebookDisconnect } from "../validators/agency.validator.js";
+
+const router = Router({ mergeParams: true });
+router.use("/:agencyId", agencyScopeMiddleware);
+router.get("/:agencyId", roleMiddleware("admin"), getAgency);
+router.get("/:agencyId/facebook-overview", getFacebookOverview);
+router.get("/:agencyId/facebook-accounts", getFacebookAccounts);
+router.post("/:agencyId/facebook-sync", roleMiddleware("admin"), createFacebookSyncJob);
+router.post("/:agencyId/facebook-sync-jobs", roleMiddleware("admin"), createFacebookSyncJob);
+router.get("/:agencyId/facebook-sync-jobs/active", roleMiddleware("admin"), getActiveFacebookSync);
+router.get("/:agencyId/facebook-sync-jobs", roleMiddleware("admin"), getFacebookSyncHistory);
+router.post("/:agencyId/facebook-sync-jobs/:jobId/accounts/:accountId/retry", roleMiddleware("admin"), retryFacebookSyncAccount);
+router.get("/:agencyId/facebook-sync-jobs/:jobId", roleMiddleware("admin"), getFacebookSyncDetail);
+router.patch("/:agencyId", roleMiddleware("admin"), validateAgencyUpdate, updateAgency);
+router.post("/:agencyId/facebook", roleMiddleware("admin"), validateFacebookCredential, saveFacebookCredential);
+router.delete("/:agencyId/facebook", roleMiddleware("admin"), validateFacebookDisconnect, disconnectFacebook);
+export default router;

@@ -33,7 +33,7 @@ const isAuthUser = (value: unknown): value is AuthUser => {
     && (user.client === undefined || user.client === null || typeof user.client === "string");
 };
 
-export const login = (payload: { email: string; password: string; agencySlug?: string }) => apiRequest<AuthResponse>("/auth/login", {
+export const login = (payload: { email: string; password: string }) => apiRequest<AuthResponse>("/auth/login", {
   method: "POST",
   body: JSON.stringify(payload),
 });

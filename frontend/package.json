@@ -1,11 +1,8 @@
 {
-  "name": "adflow-pro-frontend",
+  "name": "@figma/my-make-file",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.1",
   "type": "module",
-  "engines": {
-    "node": ">=20"
-  },
   "scripts": {
     "build": "vite build",
     "dev": "vite",

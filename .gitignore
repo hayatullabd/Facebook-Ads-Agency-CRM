@@ -1,7 +1,6 @@
 node_modules/
 dist/
 .dbg/
-.trae
 
 .env
 .env.*
@@ -14,12 +13,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 coverage/
-.venv/
-*.egg-info/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-*.py[cod]
 
 .vscode/
 .idea/
