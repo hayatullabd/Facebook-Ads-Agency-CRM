@@ -1,10 +1,10 @@
 import secrets
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
     jwt_expire_minutes: int = 10080
     allow_public_registration: bool = False
-    cors_origins: list[str] = ["http://localhost:5173"]
-    trusted_hosts: list[str] = []
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
+    trusted_hosts: Annotated[list[str], NoDecode] = []
     max_body_bytes: int = 1_048_576
     rate_limit_per_minute: int = 180
     facebook_token_encryption_key: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
