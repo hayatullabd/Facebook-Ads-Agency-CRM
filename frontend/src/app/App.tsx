@@ -48,27 +48,28 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
   return (
     <>
       <SidebarNav open={open}>
-        <div className="flex items-center justify-between border-b border-[#20293a] px-2 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-md bg-blue-600"><Megaphone className="size-4" /></div>
-            <div><p className="font-bold">AdFlow Pro</p><p className="text-[10px] uppercase text-slate-500">Agency CRM</p></div>
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-2 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-950/40"><Megaphone className="size-5" /></div>
+            <div><p className="text-lg font-bold tracking-tight text-white">AdFlow <span className="text-blue-400">Pro</span></p><p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600">Agency OS</p></div>
           </div>
           <button onClick={onClose} className="crm-icon-button border-0 lg:hidden" aria-label="Close navigation"><X className="size-5" /></button>
         </div>
-        <nav className="mt-4 flex-1 space-y-1" aria-label="Primary navigation">
+        <p className="px-3 pt-5 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-600">Workspace</p>
+        <nav className="mt-2 flex-1 space-y-1" aria-label="Primary navigation">
           {items.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => { onNavigate(id); onClose(); }}
-              className={`flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-sm font-medium transition ${screen === id ? "border-blue-500/20 bg-blue-500/10 text-blue-300" : "border-transparent text-slate-400 hover:bg-[#131827] hover:text-slate-100"}`}
+              className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${screen === id ? "border-blue-400/20 bg-gradient-to-r from-blue-500/15 to-indigo-500/5 text-blue-200 shadow-[inset_3px_0_0_#3b82f6]" : "border-transparent text-slate-500 hover:bg-white/[0.04] hover:text-slate-200"}`}
             >
-              <Icon className="size-4" />{label}
+              <Icon className={`size-4 ${screen === id ? "text-blue-400" : "text-slate-600 group-hover:text-slate-400"}`} />{label}
             </button>
           ))}
         </nav>
-        <div className="rounded-md border border-[#20293a] bg-[#131827] p-3">
-          <p className="text-[10px] uppercase text-slate-500">Session role</p>
-          <p className="mt-1 text-sm font-semibold capitalize text-slate-200">{role}</p>
+        <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-br from-white/[0.04] to-transparent p-3.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-600">Signed in as</p>
+          <div className="mt-2 flex items-center gap-2"><span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" /><p className="text-sm font-semibold capitalize text-slate-200">{role}</p></div>
         </div>
       </SidebarNav>
       {open && <button className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}

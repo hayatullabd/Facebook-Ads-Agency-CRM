@@ -1,93 +1,108 @@
-# Facebook Ads Agency CRM
+# AdFlow Pro
 
-A MERN CRM for managing clients, ad requests, campaigns, billing, updates, and agency settings.
+A B2B agency CRM built with React, Tailwind CSS, FastAPI, Beanie, MongoDB Atlas, Celery, and Redis. It manages agency users, clients, ad requests, campaigns, billing, wallet transactions, client updates, and Meta Ads synchronization.
 
 ## Requirements
 
-- Node.js 18+
-- MongoDB
+- Python 3.12+
+- Node.js 20+
+- MongoDB Atlas or a transaction-capable MongoDB replica set
+- Redis for Celery workers and scheduled Meta synchronization
 
-## Install
+## Backend Setup
 
-```bash
-cd frontend
-npm install
-cd ../backend
-npm install
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
 ```
 
-## Environment
+Configure `backend/.env` with deployment-specific values. Production requires:
 
-Copy `backend/.env.example` to `backend/.env` and provide deployment-specific values. Production requires:
+- `ENVIRONMENT=production`
+- `MONGODB_URI`: MongoDB Atlas or replica-set URI
+- `MONGODB_DATABASE`: application database name
+- `JWT_SECRET`: an explicit cryptographically random secret of at least 32 characters
+- `FACEBOOK_TOKEN_ENCRYPTION_KEY`: a separate explicit random secret of at least 32 characters
+- `CORS_ORIGINS`: comma-separated frontend origins
+- `REDIS_URL`: Redis connection URL for Celery
+- `ALLOW_PUBLIC_REGISTRATION=false` unless public tenant signup is intentional
 
-- `NODE_ENV=production`
-- `MONGODB_URI`: the MongoDB connection URI
-- `JWT_SECRET`: a cryptographically random, non-placeholder secret of at least 32 characters
-- `CLIENT_URL`: the exact allowed frontend origin; comma-separated origins are supported
-- `PORT`: API listening port
-- `TRUST_PROXY=true` only when deployed behind a trusted reverse proxy
-- `FACEBOOK_REQUEST_TIMEOUT_MS`: optional timeout for Facebook API requests
-- `SHUTDOWN_TIMEOUT_MS`: optional graceful shutdown timeout
+Start the API:
 
-Frontend build settings can be configured in `frontend/.env`:
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 5001 --reload
+```
+
+Start the Celery worker in another terminal:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m celery -A app.workers.celery_app:celery_app worker --loglevel=INFO --pool=solo
+```
+
+Start Celery Beat for hourly Meta synchronization:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m celery -A app.workers.celery_app:celery_app beat --loglevel=INFO
+```
+
+The Windows helpers `run-api.bat`, `run-worker.bat`, and `run-beat.bat` provide equivalent commands when Python is already available on `PATH`.
+
+## Frontend Setup
+
+```powershell
+cd frontend
+npm.cmd install
+Copy-Item .env.example .env
+npm.cmd run dev
+```
+
+Development can use:
 
 ```env
-VITE_API_URL=/api
+VITE_API_URL=http://localhost:5001/api
 VITE_PUBLIC_BASE=/
 ```
 
-For production, prefer same-origin deployment with `VITE_API_URL=/api` and configure the reverse proxy to forward `/api` requests to the backend. Set `VITE_PUBLIC_BASE` to the public subpath when deploying the frontend below the domain root (for example, `/crm/`).
+Production builds require an absolute API URL:
 
-## Development
+```env
+VITE_API_URL=https://api.example.com/api
+```
 
-```bash
-# backend
-cd backend
-npm run dev
+Build the frontend:
 
-# frontend (separate terminal)
+```powershell
 cd frontend
-npm run dev
+npm.cmd run build
 ```
 
-## Production build and start
+Serve `frontend/dist` from a static host. Unknown browser routes must resolve to `index.html` for React Router.
 
-```bash
-cd frontend
-npm run build
+## Verification
 
-cd ../backend
-NODE_ENV=production npm start
-```
-
-Serve `frontend/dist` with a production static host or reverse proxy. The static host must rewrite unknown, non-file browser routes to `frontend/dist/index.html` so `BrowserRouter` routes continue to work after refreshes.
-
-### Vercel frontend deployment
-
-Create the Vercel project with **Root Directory** `frontend`, **Framework Preset** `Vite`, and **Output Directory** `dist`. Set `VITE_API_URL` to the deployed backend API base (including `/api`, for example `https://api.example.com/api`), then redeploy. `frontend/vercel.json` already includes the SPA route fallback, so direct reloads of `/dashboard`, `/campaigns`, and other browser routes resolve to `index.html` while built assets continue to serve normally.
-
-The backend exposes `/health/live` for liveness and `/health/ready` for readiness checks. `/health` remains available for backward compatibility.
-
-Authentication and global rate-limit stores are process-local. Multi-instance production deployments must use shared external stores and a load-balancer strategy that preserves correct authentication and rate-limiting behavior.
-
-Local `.env` files and generated `dist` directories are ignored and must not be committed.
-
-## Optional seed data
-
-The seed command deletes existing application data before recreating sample records. Do not run it against a production database. It requires four explicit, unique passwords through `SEED_ADMIN_PASSWORD`, `SEED_TEAM_PASSWORD`, `SEED_MODERATOR_PASSWORD`, and `SEED_CLIENT_PASSWORD`. Each must contain at least 12 characters, uppercase, lowercase, a number, and a special character.
-
-```bash
+```powershell
 cd backend
-npm run seed
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m compileall -q app
+
+cd ..\frontend
+$env:VITE_API_URL="https://api.example.com/api"
+npm.cmd run build
 ```
 
-Passwords are not stored in source or printed by the seed script.
+## Production Processes
 
-## Commands
+Deploy three separate backend processes using the same backend code and environment:
 
-Frontend: `npm run dev`, `npm run build`, `npm run preview`  
-Backend: `npm run check`, `npm run dev`, `npm start`, `npm run seed`
+- API: `python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Worker: `python -m celery -A app.workers.celery_app:celery_app worker --loglevel=INFO`
+- Scheduler: `python -m celery -A app.workers.celery_app:celery_app beat --loglevel=INFO`
 
-API routes are grouped under `/api`; authenticated calls use `Authorization: Bearer <token>`.
+Use `/health/live` for liveness and `/health/ready` for readiness checks. The API uses `/api` as its route prefix and Bearer JWT authentication.
 
-If MongoDB credentials were ever exposed, provider-side credential rotation remains required; update `MONGODB_URI` afterward. Rotation cannot be performed by this repository alone.
+MongoDB must support transactions because wallet balance and transaction ledger writes are atomic. Redis is required for Meta sync enqueueing, workers, and hourly scheduling. Actual `.env` files, generated frontend builds, Python caches, and virtual environments must not be committed.

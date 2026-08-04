@@ -62,7 +62,7 @@ export function CampaignsPage({ campaigns, accounts, clients, role, onUpdateCamp
 
   return <div className="space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 className="text-lg font-semibold">Campaigns</h2><p className="text-sm text-slate-500">Performance by Facebook ad account and CRM source</p></div>
+      <div><h2 className="crm-page-title">Campaigns</h2><p className="crm-page-subtitle">Performance by Facebook ad account and CRM source</p></div>
       {canManage && <Button onClick={() => setMappingOpen(true)}><Link2 className="size-4" />Map ad accounts</Button>}
     </div>
     {error && <div role="alert" className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
