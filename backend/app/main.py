@@ -30,7 +30,14 @@ async def lifespan(app: FastAPI):
 
 def create_app(*, skip_database: bool = False) -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, lifespan=lifespan)
+    docs_enabled = settings.environment != "production" or settings.production_docs_enabled
+    app = FastAPI(
+        title=settings.app_name,
+        lifespan=lifespan,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+    )
     app.state.skip_database = skip_database
     app.state.rate_buckets = defaultdict(deque)
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=True, allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Request-ID"])
@@ -51,7 +58,10 @@ def create_app(*, skip_database: bool = False) -> FastAPI:
                 return JSONResponse(status_code=429, content={"success": False, "message": "Too many requests", "requestId": request.state.request_id})
             bucket.append(now)
         response = await call_next(request)
-        response.headers.update({"X-Request-ID": request.state.request_id, "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "Permissions-Policy": "camera=(), microphone=(), geolocation=()"})
+        security_headers = {"X-Request-ID": request.state.request_id, "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "Permissions-Policy": "camera=(), microphone=(), geolocation=()"}
+        if settings.environment == "production":
+            security_headers.update({"Strict-Transport-Security": "max-age=31536000; includeSubDomains", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"})
+        response.headers.update(security_headers)
         return response
 
     @app.exception_handler(ApiError)
