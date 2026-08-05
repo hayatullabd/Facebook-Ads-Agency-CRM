@@ -1,8 +1,11 @@
 import ApiCredential from "../models/ApiCredential.model.js";
 import Campaign from "../models/Campaign.model.js";
 import Client from "../models/Client.model.js";
+import ClientUpdate from "../models/ClientUpdate.model.js";
+import Invoice from "../models/Invoice.model.js";
+import User from "../models/User.model.js";
+import AdRequest from "../models/AdRequest.model.js";
 import { ApiError } from "../utils/ApiError.js";
-
 export async function getClientCampaignVisibility(agencyId, clientId) {
   const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("facebookAdAccountIds");
   const assignedAccounts = client?.facebookAdAccountIds || [];
@@ -69,6 +72,16 @@ export async function setCampaignClientAssignment({ agencyId, campaignId, client
 export async function deleteClientAndDetachFacebookCampaigns(agencyId, clientId) {
   const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("_id");
   if (!client) throw new ApiError(404, "Client not found");
+  const [users, requests, campaigns, invoices, updates] = await Promise.all([
+    User.exists({ agency: agencyId, client: clientId }),
+    AdRequest.exists({ agency: agencyId, client: clientId }),
+    Campaign.exists({ agency: agencyId, client: clientId, source: { $ne: "facebook" } }),
+    Invoice.exists({ agency: agencyId, client: clientId }),
+    ClientUpdate.exists({ agency: agencyId, client: clientId }),
+  ]);
+  if (users || requests || campaigns || invoices || updates) {
+    throw new ApiError(409, "Client has dependent records and cannot be deleted");
+  }
   await Campaign.updateMany(
     { agency: agencyId, client: clientId, source: "facebook" },
     { $set: { client: null } }

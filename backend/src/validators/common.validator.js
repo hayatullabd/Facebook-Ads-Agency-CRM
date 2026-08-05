@@ -19,16 +19,19 @@ export const validateObject = (rules, source = "body") => (req, _res, next) => {
       return next(new ApiError(400, `${field} must be a ${rule.type}`));
     }
     if (typeof value === "string") {
-      if (rule.minLength && value.length < rule.minLength) return next(new ApiError(400, `${field} must be at least ${rule.minLength} characters`));
-      if (rule.maxLength && value.length > rule.maxLength) return next(new ApiError(400, `${field} must be at most ${rule.maxLength} characters`));
+      const normalizedValue = rule.trim ? value.trim() : value;
+      if (rule.trim) values[field] = normalizedValue;
+      if (required && !normalizedValue) return next(new ApiError(400, `${field} is required`));
+      if (rule.minLength && normalizedValue.length < rule.minLength) return next(new ApiError(400, `${field} must be at least ${rule.minLength} characters`));
+      if (rule.maxLength && normalizedValue.length > rule.maxLength) return next(new ApiError(400, `${field} must be at most ${rule.maxLength} characters`));
     }
     if (typeof value === "number") {
       if (rule.min !== undefined && value < rule.min) return next(new ApiError(400, `${field} must be at least ${rule.min}`));
       if (rule.max !== undefined && value > rule.max) return next(new ApiError(400, `${field} must be at most ${rule.max}`));
     }
     if (value !== undefined && value !== null && rule.enum && !rule.enum.includes(value)) return next(new ApiError(400, `${field} must be one of: ${rule.enum.join(", ")}`));
-    if (value !== undefined && value !== null && rule.email && !isEmail(value)) return next(new ApiError(400, `${field} must be a valid email`));
-    if (value !== undefined && value !== null && rule.custom && !rule.custom(value, req)) return next(new ApiError(400, `${field} is invalid`));
+    if (value !== undefined && value !== null && rule.email && !isEmail(values[field])) return next(new ApiError(400, `${field} must be a valid email`));
+    if (value !== undefined && value !== null && rule.custom && !rule.custom(values[field], req)) return next(new ApiError(400, `${field} is invalid`));
   }
   next();
 };

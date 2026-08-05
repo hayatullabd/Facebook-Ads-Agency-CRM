@@ -45,8 +45,8 @@ export const register = (payload: { agencyName: string; name: string; email: str
 
 export const saveSession = (session: AuthResponse) => {
   if (!session.token || !isAuthUser(session.user)) throw new Error("Invalid session response");
-  localStorage.setItem("adflow_token", session.token);
   localStorage.setItem("adflow_user", JSON.stringify(session.user));
+  localStorage.setItem("adflow_token", session.token);
 };
 
 export const clearSession = () => {

@@ -12,8 +12,17 @@ export function useSessionController() {
       setSession(null);
       setSessionMessage("Your session expired. Please sign in again.");
     };
+    const syncSession = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== "adflow_token") return;
+      setSession(getSavedSession());
+      setSessionMessage("");
+    };
     window.addEventListener(SESSION_EXPIRED_EVENT, expireSession);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession);
+    window.addEventListener("storage", syncSession);
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, expireSession);
+      window.removeEventListener("storage", syncSession);
+    };
   }, []);
 
   const enter = (nextSession: AuthResponse) => {

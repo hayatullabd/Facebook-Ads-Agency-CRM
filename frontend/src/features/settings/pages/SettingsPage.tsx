@@ -76,10 +76,33 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
     event.preventDefault(); setBusy("save"); setError(""); setMessage("");
     try {
       await saveAgencySettings(agencyId, { name: agencyName, defaultRate: Number(defaultRate) });
-      if (accessToken.trim()) await saveFacebookSettings(agencyId, { accessToken, defaultAdAccountId: account || undefined });
-      setAccessToken(""); await load(); await onWorkspaceRefresh(); setMessage("Settings saved successfully.");
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not save settings"); }
-    finally { setBusy(""); }
+    } catch (err) {
+      setError(`Agency profile could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`);
+      setBusy("");
+      return;
+    }
+
+    const savingFacebookSettings = Boolean(accessToken.trim());
+    if (savingFacebookSettings) {
+      try {
+        await saveFacebookSettings(agencyId, { accessToken, defaultAdAccountId: account || undefined });
+        setAccessToken("");
+      } catch (err) {
+        setError(`Agency profile was saved, but Facebook settings could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`);
+        setBusy("");
+        return;
+      }
+    }
+
+    const workspaceOk = await onWorkspaceRefresh();
+    try {
+      await load();
+      const savedMessage = savingFacebookSettings ? "Agency profile and Facebook settings saved successfully." : "Agency profile saved successfully.";
+      if (workspaceOk) setMessage(savedMessage);
+      else setError(`${savedMessage} Some workspace data could not be refreshed.`);
+    } catch (err) {
+      setError(`Settings were saved, but the latest settings could not be reloaded: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally { setBusy(""); }
   };
 
   const sync = async () => {
@@ -100,7 +123,14 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
     const prompt = revokeRemote ? "Revoke Facebook permissions remotely? You will need to authorize again." : "Disconnect Facebook locally? Synced data and history will be preserved.";
     if (!window.confirm(prompt)) return;
     setBusy("disconnect"); setError("");
-    try { await disconnectFacebook(agencyId, revokeRemote); setJob(null); await load(); await onWorkspaceRefresh(); setMessage("Facebook disconnected. Synced data was preserved."); }
+    try {
+      await disconnectFacebook(agencyId, revokeRemote);
+      setJob(null);
+      await load();
+      const workspaceOk = await onWorkspaceRefresh();
+      if (workspaceOk) setMessage("Facebook disconnected. Synced data was preserved.");
+      else setError("Facebook was disconnected, but some workspace data could not be refreshed.");
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Could not disconnect Facebook"); }
     finally { setBusy(""); }
   };

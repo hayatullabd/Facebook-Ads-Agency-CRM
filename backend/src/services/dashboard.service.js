@@ -13,10 +13,19 @@ export const getDashboardSummaryData = async (agency, client) => {
     Campaign.find(campaignScope),
     Invoice.find(linkedScope),
   ]);
+  const totalsByCurrency = (items, predicate = () => true) => items.filter(predicate).reduce((totals, item) => {
+    const currency = item.currency || item.budget?.currency || "USD";
+    totals[currency] = (totals[currency] || 0) + item.amount;
+    return totals;
+  }, {});
+  const billedByCurrency = totalsByCurrency(invoices);
+  const unpaidByCurrency = totalsByCurrency(invoices, (invoice) => invoice.status !== "Paid");
   return {
     kpis: {
-      totalBilled: invoices.reduce((sum, invoice) => sum + invoice.amount, 0),
-      unpaid: invoices.filter((invoice) => invoice.status !== "Paid").reduce((sum, invoice) => sum + invoice.amount, 0),
+      totalBilled: Object.values(billedByCurrency).reduce((sum, value) => sum + value, 0),
+      unpaid: Object.values(unpaidByCurrency).reduce((sum, value) => sum + value, 0),
+      totalBilledByCurrency: billedByCurrency,
+      unpaidByCurrency: unpaidByCurrency,
       liveCampaigns: campaigns.filter((campaign) => campaign.status === "active").length,
       activeClients: clients.filter((item) => item.status === "active").length,
       totalRequests: requests.length,

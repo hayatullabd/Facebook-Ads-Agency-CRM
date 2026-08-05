@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema(
       required: [true, "Email is required"],
       lowercase: true,
       trim: true,
-      index: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
     },
     password: {
@@ -57,7 +56,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userSchema.index({ agency: 1, email: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true });
 
 userSchema.pre("save", async function hashPassword(next) {
   if (!this.isModified("password")) return next();

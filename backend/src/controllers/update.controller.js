@@ -2,7 +2,7 @@ import ClientUpdate from "../models/ClientUpdate.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
+import { validateClientAndAdRequest } from "../services/referenceValidation.service.js";
 export const getUpdates = asyncHandler(async (req, res) => {
   const query = { agency: req.params.agencyId };
   if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;
@@ -12,6 +12,7 @@ export const getUpdates = asyncHandler(async (req, res) => {
 
 export const createUpdate = asyncHandler(async (req, res) => {
   const { client, adRequest, type, title, content } = req.body;
+  await validateClientAndAdRequest({ agencyId: req.params.agencyId, clientId: client, adRequestId: adRequest });
   const update = await ClientUpdate.create({
     agency: req.params.agencyId,
     client,

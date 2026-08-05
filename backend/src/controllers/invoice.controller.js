@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateId } from "../utils/generateId.js";
+import { validateClientAndAdRequest } from "../services/referenceValidation.service.js";
 
 const createFields = ["client", "adRequest", "pageName", "objective", "budget", "durationDays", "rate", "amount", "currency", "status", "dueDate", "notes"];
 const pickInvoiceFields = (body) => Object.fromEntries(
@@ -17,8 +18,10 @@ export const getInvoices = asyncHandler(async (req, res) => {
 });
 
 export const createInvoice = asyncHandler(async (req, res) => {
+  const fields = pickInvoiceFields(req.body);
+  await validateClientAndAdRequest({ agencyId: req.params.agencyId, clientId: fields.client, adRequestId: fields.adRequest });
   const invoice = await Invoice.create({
-    ...pickInvoiceFields(req.body),
+    ...fields,
     agency: req.params.agencyId,
     invoiceNumber: generateId("INV"),
   });

@@ -15,7 +15,12 @@ export const createManagedUser = async ({ agencyId, actor, name, email, password
   const passwordError = getPasswordPolicyError(password);
   if (passwordError) throw new ApiError(400, passwordError);
   if (!canManageRole(actor, role, client)) throw new ApiError(403, "You do not have permission to create this user");
-  return User.create({ agency: agencyId, client: ["client", "moderator"].includes(role) ? client : null, name, email, password, role, avatarColor: role === "team" ? "bg-emerald-600" : role === "moderator" ? "bg-amber-600" : "bg-violet-600" });
+  try {
+    return await User.create({ agency: agencyId, client: ["client", "moderator"].includes(role) ? client : null, name: name.trim(), email: email.trim().toLowerCase(), password, role, avatarColor: role === "team" ? "bg-emerald-600" : role === "moderator" ? "bg-amber-600" : "bg-violet-600" });
+  } catch (error) {
+    if (error?.code === 11000) throw new ApiError(409, "An account with this email already exists");
+    throw error;
+  }
 };
 
 export const removeManagedUser = async ({ agencyId, actor, userId }) => {
