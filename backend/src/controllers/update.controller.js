@@ -25,6 +25,32 @@ export const createUpdate = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, update, "Update sent"));
 });
 
+export const updateClientUpdate = asyncHandler(async (req, res) => {
+  const fields = Object.fromEntries(
+    ["client", "adRequest", "type", "title", "content"]
+      .filter((field) => req.body[field] !== undefined)
+      .map((field) => [field, req.body[field]])
+  );
+  const update = await ClientUpdate.findOne({ _id: req.params.updateId, agency: req.params.agencyId });
+  if (!update) throw new ApiError(404, "Update not found");
+  if (fields.client !== undefined || fields.adRequest !== undefined) {
+    await validateClientAndAdRequest({
+      agencyId: req.params.agencyId,
+      clientId: fields.client ?? update.client,
+      adRequestId: fields.adRequest ?? update.adRequest,
+    });
+  }
+  Object.assign(update, fields);
+  await update.save();
+  res.json(new ApiResponse(200, update, "Update edited"));
+});
+
+export const deleteUpdate = asyncHandler(async (req, res) => {
+  const update = await ClientUpdate.findOneAndDelete({ _id: req.params.updateId, agency: req.params.agencyId });
+  if (!update) throw new ApiError(404, "Update not found");
+  res.json(new ApiResponse(200, null, "Update deleted"));
+});
+
 export const markUpdateRead = asyncHandler(async (req, res) => {
   const query = { _id: req.params.updateId, agency: req.params.agencyId };
   if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;

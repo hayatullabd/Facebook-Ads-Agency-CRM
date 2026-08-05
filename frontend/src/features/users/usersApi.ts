@@ -8,6 +8,8 @@ export const createUser = (agencyId: string, payload: { name: string; email: str
   });
 };
 
+export const updateUser = (agencyId: string, userId: string, payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean }) => apiRequest<UserAccount>(`/users/${agencyId}/${userId}`, { method: "PATCH", body: JSON.stringify(payload) });
+
 export const removeUser = (agencyId: string, userId: string) => {
   return apiRequest<null>(`/users/${agencyId}/${userId}`, {
     method: "DELETE",

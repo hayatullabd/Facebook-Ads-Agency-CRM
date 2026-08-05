@@ -119,6 +119,7 @@ export interface Client {
   activeCampaigns: number;
   billingRate: number;
   color: string;
+  facebookAdAccountIds?: string[];
 }
 
 export interface UserAccount {
@@ -170,6 +171,7 @@ export interface Campaign {
   _id: string;
   name: string;
   client?: Client | null;
+  adRequest?: AdRequest | null;
   source: "crm" | "facebook";
   facebookCampaignId?: string;
   facebookAdAccountId?: string;
@@ -190,6 +192,7 @@ export interface Invoice {
   _id: string;
   invoiceNumber: string;
   client?: Client;
+  adRequest?: AdRequest;
   pageName: string;
   objective: string;
   budget: { amount: number; type: "daily" | "lifetime"; currency: string };
@@ -209,5 +212,6 @@ export interface ClientUpdate {
   type: "message" | "performance" | "billing" | "status";
   title: string;
   content: string;
+  readBy?: Array<{ user: string | Pick<UserAccount, "_id" | "name">; readAt: string }>;
   createdAt: string;
 }

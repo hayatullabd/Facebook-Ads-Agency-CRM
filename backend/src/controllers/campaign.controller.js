@@ -5,9 +5,10 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-const mutableFields = ["client", "adRequest", "facebookCampaignId", "name", "platform", "objective", "status", "budget", "startDate", "endDate", "performance"];
-const pickCampaignFields = (body) => Object.fromEntries(
-  mutableFields.filter((field) => body[field] !== undefined).map((field) => [field, body[field]])
+const createFields = ["client", "adRequest", "facebookCampaignId", "name", "platform", "objective", "status", "budget", "startDate", "endDate", "performance"];
+const updateFields = ["client", "adRequest", "name", "objective", "status", "budget"];
+const pickCampaignFields = (body, fields = createFields) => Object.fromEntries(
+  fields.filter((field) => body[field] !== undefined).map((field) => [field, body[field]])
 );
 
 export const getCampaigns = asyncHandler(async (req, res) => {
@@ -31,15 +32,15 @@ export const createCampaign = asyncHandler(async (req, res) => {
 });
 
 export const updateCampaign = asyncHandler(async (req, res) => {
-  const fields = pickCampaignFields(req.body);
+  const fields = pickCampaignFields(req.body, updateFields);
   const existing = await Campaign.findOne({ _id: req.params.campaignId, agency: req.params.agencyId }).select("client adRequest source");
   if (!existing) throw new ApiError(404, "Campaign not found");
+  if (existing.source === "facebook") throw new ApiError(409, "Facebook campaigns can only be changed through dedicated assignment or sync operations");
   if (fields.client !== undefined || fields.adRequest !== undefined) {
     await validateClientAndAdRequest({
       agencyId: req.params.agencyId,
       clientId: fields.client ?? existing.client,
       adRequestId: fields.adRequest ?? existing.adRequest,
-      required: existing.source !== "facebook",
     });
   }
   const campaign = await Campaign.findOneAndUpdate(
@@ -48,6 +49,14 @@ export const updateCampaign = asyncHandler(async (req, res) => {
     { new: true, runValidators: true }
   );
   res.json(new ApiResponse(200, campaign, "Campaign updated"));
+});
+
+export const deleteCampaign = asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOne({ _id: req.params.campaignId, agency: req.params.agencyId }).select("source");
+  if (!campaign) throw new ApiError(404, "Campaign not found");
+  if (campaign.source !== "crm") throw new ApiError(409, "Facebook campaigns cannot be deleted");
+  await campaign.deleteOne();
+  res.json(new ApiResponse(200, null, "Campaign deleted"));
 });
 
 export const assignCampaignClient = asyncHandler(async (req, res) => {

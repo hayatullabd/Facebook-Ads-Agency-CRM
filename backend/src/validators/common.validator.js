@@ -7,8 +7,13 @@ export const objectIdRule = { type: "string", custom: (value) => isObjectId(valu
 export const agencyParams = { agencyId: objectIdRule };
 export const idParams = (name) => ({ [name]: objectIdRule });
 
-export const validateObject = (rules, source = "body") => (req, _res, next) => {
+export const validateObject = (rules, source = "body", strict = false) => (req, _res, next) => {
   const values = req[source] || {};
+  if (strict) {
+    const unknownField = Object.keys(values).find((field) => !Object.hasOwn(rules, field));
+    if (unknownField) return next(new ApiError(400, `${unknownField} is not allowed`));
+    if (source === "body" && Object.keys(values).length === 0) return next(new ApiError(400, "Request body cannot be empty"));
+  }
   for (const [field, rule] of Object.entries(rules)) {
     const value = values[field];
     const required = typeof rule.required === "function" ? rule.required(req) : rule.required;

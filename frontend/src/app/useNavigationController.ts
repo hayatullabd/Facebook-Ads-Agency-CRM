@@ -17,6 +17,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
     { id: "billing", label: "Billing", icon: CreditCard },
+    { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Users", icon: Shield },
     { id: "settings", label: "Settings", icon: Settings },
   ],
@@ -26,6 +27,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
     { id: "billing", label: "Billing", icon: CreditCard },
+    { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Users", icon: Shield },
   ],
   client: [

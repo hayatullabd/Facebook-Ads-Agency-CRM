@@ -13,7 +13,10 @@ export async function getClientCampaignVisibility(agencyId, clientId) {
     agency: agencyId,
     $or: [
       { client: clientId },
-      { facebookAdAccountId: { $in: assignedAccounts } },
+      {
+        facebookAdAccountId: { $in: assignedAccounts },
+        client: { $in: [null, clientId] },
+      },
     ],
   };
 }
@@ -28,26 +31,46 @@ export async function setClientAdAccountAssignment({ agencyId, clientId, faceboo
     throw new ApiError(404, "Facebook ad account is not available for this agency");
   }
 
-  if (assigned) {
-    const owner = await Client.findOne({
-      agency: agencyId,
-      _id: { $ne: clientId },
-      facebookAdAccountIds: facebookAdAccountId,
-    }).select("_id");
-    if (owner) throw new ApiError(409, "Facebook ad account is already assigned to another client");
+  if (!assigned) {
+    return Client.findOneAndUpdate(
+      { _id: clientId, agency: agencyId },
+      { $pull: { facebookAdAccountIds: facebookAdAccountId } },
+      { new: true, runValidators: true }
+    );
   }
 
-  const update = assigned
-    ? { $addToSet: { facebookAdAccountIds: facebookAdAccountId } }
-    : { $pull: { facebookAdAccountIds: facebookAdAccountId } };
+  const previousOwners = await Client.find({
+    agency: agencyId,
+    _id: { $ne: clientId },
+    facebookAdAccountIds: facebookAdAccountId,
+  }).select("_id");
+  const previousOwnerIds = previousOwners.map((owner) => owner._id);
+
+  if (previousOwnerIds.length) {
+    await Client.updateMany(
+      { _id: { $in: previousOwnerIds }, agency: agencyId },
+      { $pull: { facebookAdAccountIds: facebookAdAccountId } }
+    );
+  }
+
   try {
     return await Client.findOneAndUpdate(
       { _id: clientId, agency: agencyId },
-      update,
+      { $addToSet: { facebookAdAccountIds: facebookAdAccountId } },
       { new: true, runValidators: true }
     );
   } catch (error) {
-    if (error?.code === 11000) throw new ApiError(409, "Facebook ad account is already assigned to another client");
+    if (previousOwnerIds.length) {
+      try {
+        await Client.updateMany(
+          { _id: { $in: previousOwnerIds }, agency: agencyId },
+          { $addToSet: { facebookAdAccountIds: facebookAdAccountId } }
+        );
+      } catch {
+        throw new ApiError(409, "Facebook ad account assignment changed concurrently; please retry");
+      }
+    }
+    if (error?.code === 11000) throw new ApiError(409, "Facebook ad account assignment changed concurrently; please retry");
     throw error;
   }
 }
