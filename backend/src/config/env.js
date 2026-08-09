@@ -48,6 +48,29 @@ if (isProduction && clientUrls.length === 0) throw new Error("CLIENT_URL must in
 const facebookGraphVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim() || "v20.0";
 if (!/^v\d+\.\d+$/.test(facebookGraphVersion)) throw new Error("FACEBOOK_GRAPH_VERSION must use the format v20.0");
 
+function parseFacebookUsdRates(value) {
+  if (!value?.trim()) return { USD: 1 };
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("FACEBOOK_USD_RATES must be valid JSON");
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("FACEBOOK_USD_RATES must be a JSON object");
+  const rates = { USD: 1 };
+  for (const [currency, rate] of Object.entries(parsed)) {
+    const code = currency.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code) || !Number.isFinite(Number(rate)) || Number(rate) <= 0) {
+      throw new Error("FACEBOOK_USD_RATES must map 3-letter currency codes to positive numeric USD rates");
+    }
+    rates[code] = Number(rate);
+  }
+  rates.USD = 1;
+  return rates;
+}
+
+const facebookUsdRates = parseFacebookUsdRates(process.env.FACEBOOK_USD_RATES);
+
 export const env = {
   nodeEnv,
   isProduction,
@@ -59,6 +82,7 @@ export const env = {
   trustProxy: process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1",
   facebookRequestTimeoutMs: parseBoundedInteger("FACEBOOK_REQUEST_TIMEOUT_MS", 15000, 1000, 120000),
   facebookGraphVersion,
+  facebookUsdRates,
   facebookSyncMaxPages: parseBoundedInteger("FACEBOOK_SYNC_MAX_PAGES", 50, 1, 200),
   facebookSyncConcurrency: parseBoundedInteger("FACEBOOK_SYNC_CONCURRENCY", 2, 1, 5),
   facebookSyncLeaseMs: parseBoundedInteger("FACEBOOK_SYNC_LEASE_MS", 120000, 30000, 600000),

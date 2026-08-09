@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Filter, Plus, Search, Trash2, UserRound } from "lucide-react";
+import { Filter, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import type { Client, Role, UserAccount } from "../../../types/crm";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
@@ -8,12 +8,14 @@ import { Button } from "../../shared/Button";
 const roleOptions: Role[] = ["team", "client", "moderator"];
 const firstPermittedRole = (role: Role): Role => role === "admin" ? "team" : role === "team" ? "client" : "moderator";
 
-export function UsersPage({ users, clients, currentRole, currentClient, currentUserId, onCreateUser, onUpdateUser, onRemoveUser }: {
+export function UsersPage({ users, clients, currentRole, currentClient, currentUserId, loadError, onRetry, onCreateUser, onUpdateUser, onRemoveUser }: {
   users: UserAccount[];
   clients: Client[];
   currentRole: Role;
   currentClient?: string | null;
   currentUserId: string;
+  loadError?: string;
+  onRetry?: () => void;
   onCreateUser: (payload: { name: string; email: string; password: string; role: Role; client?: string }) => Promise<void>;
   onUpdateUser: (id: string, payload: { name: string; email: string; role: Role; client: string | null; isActive: boolean }) => Promise<void>;
   onRemoveUser: (id: string) => Promise<void>;
@@ -85,7 +87,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="crm-page-title">{currentRole === "client" ? "Moderators" : "Users & access"}</h2><p className="crm-page-subtitle">Role-based workspace access</p></div>{currentRole !== "moderator" && <Button onClick={startCreate}><Plus className="size-4" />Add User</Button>}</div>
-      {error && !open && <div role="alert" className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+      {error && !open && <div role="alert" className="rounded-md bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}{loadError && <div role="alert" className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-200">Could not load users: {loadError}. <button type="button" className="font-semibold underline" onClick={() => onRetry ? onRetry() : window.location.reload()}>Retry</button></div>}
       <Card>
         <div className="grid gap-2 border-b border-[#20293a] p-3 sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(3,minmax(9rem,12rem))_auto]">
           <div className="relative sm:col-span-2 xl:col-span-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-600" /><input aria-label="Search users" className="crm-input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search users..." /></div>

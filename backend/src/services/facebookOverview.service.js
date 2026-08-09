@@ -9,9 +9,10 @@ import { ApiError } from "../utils/ApiError.js";
 
 const GRAPH_HOST = "graph.facebook.com";
 const GRAPH_API_BASE_URL = `https://${GRAPH_HOST}/${env.facebookGraphVersion}`;
-const ACCOUNT_FIELDS = "id,account_id,name,account_status,currency,timezone_name";
+const ACCOUNT_FIELDS = "id,account_id,name,account_status,currency,timezone_name,balance,amount_spent,spend_cap";
 const CAMPAIGN_FIELDS = "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,updated_time";
-const INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions";
+const INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions,ctr";
+const ACCOUNT_INSIGHT_FIELDS = "spend";
 
 class GraphApiError extends ApiError {
   constructor(statusCode, message, category = "request") {
@@ -26,6 +27,9 @@ function normalizeAdAccountId(value) {
 }
 function number(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
 function sum(values) { return values.reduce((total, value) => total + value, 0); }
+function normalizeActions(actions) {
+  return Array.isArray(actions) ? actions.filter((item) => item?.action_type).map((item) => ({ actionType: String(item.action_type), value: number(item.value) })) : [];
+}
 function selectedResultFromActions(actions) {
   const priority = ["offsite_conversion", "lead", "onsite_conversion.lead_grouped", "purchase", "complete_registration", "link_click"];
   if (!Array.isArray(actions)) return { value: 0, metric: "" };
@@ -35,6 +39,13 @@ function selectedResultFromActions(actions) {
   }
   return { value: 0, metric: "" };
 }
+function usdRateFor(currency) {
+  const sourceCurrency = String(currency || "USD").toUpperCase();
+  const rate = env.facebookUsdRates[sourceCurrency];
+  if (!Number.isFinite(rate)) throw new GraphApiError(422, `USD conversion rate is not configured for Facebook currency ${sourceCurrency}`, "currency");
+  return { sourceCurrency, rate };
+}
+function convertToUsd(value, currency) { return number(value) * usdRateFor(currency).rate; }
 function safeGraphError(status, payload) {
   const graphCode = Number(payload?.error?.code);
   if (graphCode === 190 || status === 401) return new GraphApiError(502, "Facebook access token is invalid or expired", "invalid-token");
@@ -78,6 +89,36 @@ async function fetchAll(path, accessToken) {
   if (next) throw new GraphApiError(502, "Facebook pagination limit reached");
   return rows;
 }
+
+export async function fetchFacebookCampaignInsights({ facebookAdAccountId, accessToken, since, until, currency }) {
+  const sourceCurrency = String(currency || "").trim().toUpperCase();
+  if (!sourceCurrency) throw new GraphApiError(422, `Facebook currency is unavailable for ad account ${facebookAdAccountId}`, "currency");
+  const usdRate = usdRateFor(sourceCurrency).rate;
+  const params = new URLSearchParams({
+    fields: INSIGHT_FIELDS,
+    level: "campaign",
+    time_range: JSON.stringify({ since, until }),
+  });
+  const rows = await fetchAll(`/${facebookAdAccountId}/insights?${params.toString()}`, accessToken);
+  return rows.filter((row) => row?.campaign_id).map((row) => {
+    const selectedResult = selectedResultFromActions(row.actions);
+    const spend = number(row.spend) * usdRate;
+    return {
+      facebookCampaignId: String(row.campaign_id),
+      actions: normalizeActions(row.actions),
+      results: selectedResult.value,
+      resultMetric: selectedResult.metric,
+      landingPageViews: number(row.actions?.find((action) => action?.action_type === "landing_page_view")?.value),
+      spend,
+      amountSpent: spend,
+      costPerResult: selectedResult.value ? spend / selectedResult.value : 0,
+      ctrAll: number(row.ctr),
+      reach: number(row.reach),
+      impressions: number(row.impressions),
+      currency: "USD",
+    };
+  });
+}
 function accountDto(account) {
   return {
     facebookAdAccountId: normalizeAdAccountId(account.facebookAdAccountId || account.id),
@@ -86,12 +127,15 @@ function accountDto(account) {
     accountStatus: account.accountStatus ?? account.account_status ?? null,
     currency: account.currency || "",
     timezoneName: account.timezoneName || account.timezone_name || "",
+    balance: account.balance == null ? null : number(account.balance),
+    amountSpent: account.amountSpent == null && account.amount_spent == null ? null : number(account.amountSpent ?? account.amount_spent),
+    spendCap: account.spendCap == null && account.spend_cap == null ? null : number(account.spendCap ?? account.spend_cap),
     lastSeenAt: account.lastSeenAt || new Date(),
     isAccessible: account.isAccessible !== false,
   };
 }
 function formatRecentCampaigns(campaigns) {
-  return campaigns.slice(0, 3).map((campaign) => ({ id: campaign._id, name: campaign.name, status: campaign.status, spend: campaign.performance?.spend ?? 0, impressions: campaign.performance?.impressions ?? 0, results: campaign.performance?.results ?? 0, costPerResult: campaign.performance?.costPerResult ?? 0 }));
+  return campaigns.filter((campaign) => campaign.source === "facebook" && campaign.performance?.usdConversionAvailable).slice(0, 3).map((campaign) => ({ id: campaign._id, name: campaign.name, status: campaign.status, spend: campaign.performance?.amountSpent ?? campaign.performance?.spend ?? 0, impressions: campaign.performance?.impressions ?? 0, results: campaign.performance?.results ?? 0, costPerResult: campaign.performance?.costPerResult ?? 0 }));
 }
 function campaignStatus(effectiveStatus) {
   return effectiveStatus === "ACTIVE" ? "active" : effectiveStatus === "PAUSED" ? "paused" : "draft";
@@ -100,6 +144,40 @@ function budgetFromCampaign(row, currency) {
   if (row.daily_budget !== undefined && row.daily_budget !== null) return { amount: number(row.daily_budget) / 100, type: "daily", currency };
   if (row.lifetime_budget !== undefined && row.lifetime_budget !== null) return { amount: number(row.lifetime_budget) / 100, type: "lifetime", currency };
   return { amount: null, type: null, currency };
+}
+
+export async function fetchFacebookAccountReport({ agencyId, since, until, clientId = null }) {
+  const credential = await ApiCredential.findOne({ agency: agencyId }).select("+accessToken adAccounts isConnected tokenExpiresAt");
+  const token = credential?.accessToken?.trim() || "";
+  if (!credential || !credential.isConnected || !token) throw new ApiError(409, "Facebook is not connected for this agency");
+  if (credential.tokenExpiresAt && credential.tokenExpiresAt <= new Date()) throw new ApiError(409, "Facebook access token has expired; reconnect Facebook");
+  const accounts = clientId ? await getFacebookAccountsForAgency(agencyId, clientId) : (credential.adAccounts || []).map(accountDto);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const yesterdayDate = new Date(now);
+  yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+  const yesterday = yesterdayDate.toISOString().slice(0, 10);
+  const monthStart = `${today.slice(0, 8)}01`;
+  const readSpend = async (account, range) => {
+    const params = new URLSearchParams({ fields: ACCOUNT_INSIGHT_FIELDS, time_range: JSON.stringify(range) });
+    const rows = await fetchAll(`/${account.facebookAdAccountId}/insights?${params.toString()}`, token);
+    return sum(rows.map((row) => number(row.spend)));
+  };
+  return Promise.all(accounts.filter((account) => account.isAccessible !== false).map(async (account) => {
+    const currency = String(account.currency || "").toUpperCase();
+    try {
+      const rate = usdRateFor(currency).rate;
+      const [todaySpend, yesterdaySpend, mtdSpend, selectedSpend] = await Promise.all([
+        readSpend(account, { since: today, until: today }),
+        readSpend(account, { since: yesterday, until: yesterday }),
+        readSpend(account, { since: monthStart, until: today }),
+        readSpend(account, { since, until }),
+      ]);
+      return { ...account, balance: account.balance == null ? null : account.balance / 100 * rate, amountSpent: account.amountSpent == null ? null : account.amountSpent / 100 * rate, spendCap: account.spendCap == null ? null : account.spendCap / 100 * rate, todaySpend: todaySpend * rate, yesterdaySpend: yesterdaySpend * rate, mtdSpend: mtdSpend * rate, selectedSpend: selectedSpend * rate, sourceCurrency: currency, currency: "USD", billingLink: `https://business.facebook.com/billing_hub/payment_methods?asset_id=${encodeURIComponent(account.accountId)}`, campaignLink: `https://www.facebook.com/adsmanager/manage/campaigns?act=${encodeURIComponent(account.accountId)}`, error: null };
+    } catch (error) {
+      return { ...account, sourceCurrency: currency, currency: "USD", billingLink: `https://business.facebook.com/billing_hub/payment_methods?asset_id=${encodeURIComponent(account.accountId)}`, campaignLink: `https://www.facebook.com/adsmanager/manage/campaigns?act=${encodeURIComponent(account.accountId)}`, error: { message: error instanceof ApiError ? error.message : "Facebook account report failed", category: error.category || "request" } };
+    }
+  }));
 }
 
 export async function discoverFacebookAdAccounts(accessToken) {
@@ -143,7 +221,10 @@ async function syncAccount(agencyId, account, accessToken) {
     seenIds.push(id);
     const insight = insightMap.get(id) || {};
     const selectedResult = selectedResultFromActions(insight.actions);
-    const spend = number(insight.spend);
+    const actions = normalizeActions(insight.actions);
+    const sourceCurrency = String(account.currency || "USD").toUpperCase();
+    const usdRate = usdRateFor(sourceCurrency).rate;
+    const spend = number(insight.spend) * usdRate;
     operations.push({
       updateOne: {
         filter: { agency: agencyId, source: "facebook", facebookAdAccountId: accountId, facebookCampaignId: id },
@@ -154,12 +235,13 @@ async function syncAccount(agencyId, account, accessToken) {
             facebookObjective: row.objective || "",
             facebookStatus: row.status || "",
             effectiveStatus: row.effective_status || "",
+            status: campaignStatus(row.effective_status || row.status),
             lastSeenAt: now,
             isStale: false,
             startDate: row.start_time || null,
             endDate: row.stop_time || null,
-            budget: budgetFromCampaign(row, account.currency || "USD"),
-            performance: { spend, reach: number(insight.reach), impressions: number(insight.impressions), results: selectedResult.value, resultMetric: selectedResult.metric, costPerResult: selectedResult.value ? spend / selectedResult.value : 0, lastSyncedAt: now },
+            budget: { ...budgetFromCampaign(row, "USD"), amount: budgetFromCampaign(row, account.currency || "USD").amount == null ? null : convertToUsd(budgetFromCampaign(row, account.currency || "USD").amount, account.currency || "USD") },
+            performance: { spend, amountSpent: spend, reach: number(insight.reach), impressions: number(insight.impressions), results: selectedResult.value, resultMetric: selectedResult.metric, actions, ctrAll: number(insight.ctr), costPerResult: selectedResult.value ? spend / selectedResult.value : 0, currency: "USD", delivery: row.effective_status || row.status || "", sourceCurrency, usdConversionAvailable: true, lastSyncedAt: now },
           },
           $setOnInsert: { agency: agencyId, source: "facebook", facebookCampaignId: id, facebookAdAccountId: accountId, platform: "facebook", objective: row.objective || "" },
         },
@@ -278,7 +360,9 @@ export async function getFacebookOverviewForAgency(agencyId, clientId = null) {
   const campaignScope = clientId ? await getClientCampaignVisibility(agencyId, clientId) : { agency: agencyId };
   const invoiceScope = clientId ? { agency: agencyId, client: clientId } : { agency: agencyId };
   const [agency, credential, campaigns, invoices] = await Promise.all([Agency.findById(agencyId), ApiCredential.findOne({ agency: agencyId }).select("+accessToken"), Campaign.find(campaignScope).sort({ createdAt: -1 }), Invoice.find(invoiceScope).sort({ createdAt: -1 })]);
-  const spend = sum(campaigns.map((campaign) => campaign.performance?.spend ?? 0)); const impressions = sum(campaigns.map((campaign) => campaign.performance?.impressions ?? 0)); const results = sum(campaigns.map((campaign) => campaign.performance?.results ?? 0)); const billedAmount = sum(invoices.map((invoice) => invoice.amount ?? 0)); const unpaidAmount = sum(invoices.filter((invoice) => invoice.status !== "Paid").map((invoice) => invoice.amount ?? 0));
+  const facebookCampaigns = campaigns.filter((campaign) => campaign.source === "facebook");
+  const convertedFacebookCampaigns = facebookCampaigns.filter((campaign) => campaign.performance?.usdConversionAvailable);
+  const spend = sum(convertedFacebookCampaigns.map((campaign) => campaign.performance?.amountSpent ?? campaign.performance?.spend ?? 0)); const impressions = sum(facebookCampaigns.map((campaign) => campaign.performance?.impressions ?? 0)); const results = sum(convertedFacebookCampaigns.map((campaign) => campaign.performance?.results ?? 0)); const billedAmount = sum(invoices.map((invoice) => invoice.amount ?? 0)); const unpaidAmount = sum(invoices.filter((invoice) => invoice.status !== "Paid").map((invoice) => invoice.amount ?? 0));
   const scopedAccounts = clientId ? await getFacebookAccountsForAgency(agencyId, clientId) : (credential?.adAccounts || []).map(accountDto);
-  return { agency: { id: agency?._id?.toString?.() || agencyId, name: agency?.name || "Agency", currency: agency?.defaultCurrency || "USD" }, connection: { status: credential?.isConnected && credential.accessToken ? "connected" : "not-connected", isConnected: Boolean(credential?.isConnected && credential?.accessToken), adAccountId: credential?.defaultAdAccountId || "", accountCount: scopedAccounts.length, accounts: scopedAccounts, tokenConfigured: Boolean(credential?.accessToken), lastVerifiedAt: credential?.lastVerifiedAt || null, lastSyncAt: credential?.lastSyncAt || null, lastAccountSyncAt: credential?.lastAccountSyncAt || null, lastSyncStatus: credential?.lastSyncStatus || "never", graphApiReady: Boolean(credential?.isConnected && credential?.accessToken), graphApi: null }, overview: { spend, impressions, results, activeCampaigns: campaigns.filter((campaign) => campaign.status === "active").length, campaignCount: campaigns.length, billedAmount, unpaidAmount, dueSoonCount: 0, usage: credential?.apiUsage || { callsUsed: 0, callsLimit: 200, resetAt: null }, currency: agency?.defaultCurrency || "USD", cpa: results ? spend / results : 0 }, recentCampaigns: formatRecentCampaigns(campaigns), billing: { billedAmount, unpaidAmount, dueSoonCount: 0, currency: agency?.defaultCurrency || "USD", paidRatio: 0 }, source: credential?.isConnected ? "facebook-graph-and-stored-data" : "stored-crm-data", updatedAt: new Date().toISOString() };
+  return { agency: { id: agency?._id?.toString?.() || agencyId, name: agency?.name || "Agency", currency: agency?.defaultCurrency || "USD" }, connection: { status: credential?.isConnected && credential.accessToken ? "connected" : "not-connected", isConnected: Boolean(credential?.isConnected && credential?.accessToken), adAccountId: credential?.defaultAdAccountId || "", accountCount: scopedAccounts.length, accounts: scopedAccounts, tokenConfigured: Boolean(credential?.accessToken), lastVerifiedAt: credential?.lastVerifiedAt || null, lastSyncAt: credential?.lastSyncAt || null, lastAccountSyncAt: credential?.lastAccountSyncAt || null, lastSyncStatus: credential?.lastSyncStatus || "never", graphApiReady: Boolean(credential?.isConnected && credential?.accessToken), graphApi: null }, overview: { spend, impressions, results, activeCampaigns: campaigns.filter((campaign) => campaign.status === "active").length, campaignCount: campaigns.length, billedAmount, unpaidAmount, dueSoonCount: 0, usage: credential?.apiUsage || { callsUsed: 0, callsLimit: 200, resetAt: null }, currency: "USD", cpa: results ? spend / results : 0 }, recentCampaigns: formatRecentCampaigns(campaigns), billing: { billedAmount, unpaidAmount, dueSoonCount: 0, currency: agency?.defaultCurrency || "USD", paidRatio: 0 }, source: credential?.isConnected ? "facebook-graph-and-stored-data" : "stored-crm-data", updatedAt: new Date().toISOString() };
 }

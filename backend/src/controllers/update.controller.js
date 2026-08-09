@@ -46,7 +46,9 @@ export const updateClientUpdate = asyncHandler(async (req, res) => {
 });
 
 export const deleteUpdate = asyncHandler(async (req, res) => {
-  const update = await ClientUpdate.findOneAndDelete({ _id: req.params.updateId, agency: req.params.agencyId });
+  const query = { _id: req.params.updateId, agency: req.params.agencyId };
+  if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;
+  const update = await ClientUpdate.findOneAndDelete(query);
   if (!update) throw new ApiError(404, "Update not found");
   res.json(new ApiResponse(200, null, "Update deleted"));
 });
@@ -58,7 +60,7 @@ export const markUpdateRead = asyncHandler(async (req, res) => {
     query,
     { $addToSet: { readBy: { user: req.user._id, readAt: new Date() } } },
     { new: true }
-  );
+  ).populate("client adRequest sentBy readBy.user");
   if (!update) throw new ApiError(404, "Update not found");
   res.json(new ApiResponse(200, update, "Update marked as read"));
 });

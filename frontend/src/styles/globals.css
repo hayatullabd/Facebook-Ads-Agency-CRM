@@ -25,13 +25,12 @@
   .crm-desktop-table { @apply hidden overflow-x-auto md:block; }
   .crm-page-title { @apply text-xl font-semibold text-slate-100; }
   .crm-page-subtitle { @apply mt-0.5 text-sm text-slate-400; }
+  .crm-responsive-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .crm-sticky-campaign { position: sticky; left: 0; z-index: 2; min-width: 16rem; background: #0d121e; box-shadow: 6px 0 10px -10px rgba(0, 0, 0, 0.9); }
+  tbody .crm-sticky-campaign { background: #0a0e17; }
 }
 
 @media (max-width: 767px) {
-  .crm-responsive-table { overflow-x: visible; }
-  .crm-responsive-table table { table-layout: auto; }
-  .crm-responsive-table th:nth-child(n+4):not(:last-child),
-  .crm-responsive-table td:nth-child(n+4):not(:last-child) { display: none; }
   .crm-responsive-table th,
   .crm-responsive-table td { padding-left: 0.75rem; padding-right: 0.75rem; }
 }

@@ -56,6 +56,7 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
+      max: 365,
     },
     rate: {
       type: Number,
@@ -70,7 +71,7 @@ const invoiceSchema = new mongoose.Schema(
     currency: {
       type: String,
       enum: ["BDT", "USD", "INR"],
-      default: "BDT",
+      default: "USD",
     },
     status: {
       type: String,

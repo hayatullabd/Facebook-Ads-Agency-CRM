@@ -20,6 +20,9 @@ export interface FacebookAdAccount {
   accountStatus?: number | null;
   currency?: string;
   timezoneName?: string;
+  balance?: number | null;
+  amountSpent?: number | null;
+  spendCap?: number | null;
   lastSeenAt?: string;
   isAccessible: boolean;
 }
@@ -181,11 +184,27 @@ export interface Campaign {
   facebookObjective?: string;
   isStale?: boolean;
   lastSeenAt?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   platform: AdPlatform;
   objective: string;
   status: "draft" | "scheduled" | "active" | "paused" | "completed" | "failed";
   budget: { amount: number | null; type: "daily" | "lifetime" | null; currency: string };
-  performance: { spend: number; reach: number; impressions: number; results: number; resultMetric?: string; costPerResult: number };
+  performance: {
+    spend: number;
+    amountSpent?: number;
+    reach: number;
+    impressions: number;
+    results: number;
+    resultMetric?: string;
+    actions?: Array<{ actionType: string; value: number }>;
+    ctrAll?: number;
+    costPerResult: number;
+    currency?: string;
+    delivery?: string;
+    sourceCurrency?: string;
+    usdConversionAvailable?: boolean;
+  };
 }
 
 export interface Invoice {
@@ -202,6 +221,7 @@ export interface Invoice {
   currency: string;
   status: InvoiceStatus;
   dueDate: string;
+  notes?: string;
   createdAt: string;
 }
 

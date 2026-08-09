@@ -36,7 +36,7 @@ export function getWorkspaceRequests(agencyId: string, role: Role): WorkspaceRes
     requests.push({ key: "campaigns", load: () => apiRequest<Campaign[]>(`/campaigns/${agencyId}`) });
   }
 
-  if (["admin", "team", "client"].includes(role)) {
+  if (["admin", "team", "client", "moderator"].includes(role)) {
     requests.push({ key: "clients", load: () => apiRequest<Client[]>(`/clients/${agencyId}`) });
   }
 
