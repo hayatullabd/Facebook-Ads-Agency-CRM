@@ -121,7 +121,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
   return (
     <AppShell
       sidebar={<Sidebar screen={screen} items={items} role={session.user.role} open={mobileNavOpen} onNavigate={setScreen} onClose={() => setMobileNavOpen(false)} />}
-      topbar={<Topbar title={title} role={session.user.role} userName={session.user.name} onMenu={() => setMobileNavOpen(true)} onLogout={onLogout} />}
+      topbar={<Topbar title={title} role={session.user.role} userName={session.user.name} onMenu={() => setMobileNavOpen(true)} onLogout={onLogout} onNavigate={setScreen} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} updates={data.updates} />}
     >
       {errorEntries.length > 0 && (
         <div role="alert" className="mb-4 flex flex-col gap-2 rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-200 sm:flex-row sm:items-center sm:justify-between">
