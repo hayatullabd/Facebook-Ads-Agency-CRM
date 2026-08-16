@@ -33,7 +33,7 @@ async function parseResponse(response: Response): Promise<unknown> {
     }
   }
 
-  return text;
+  throw new ApiError(response.ok ? "The server returned an unexpected response" : `Request failed (${response.status})`, response.status, text.slice(0, 200));
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, CreditCard, FileText, LayoutDashboard, Megaphone, Settings, Shield, Users } from "lucide-react";
+import { BellRing, CalendarClock, CreditCard, FileText, LayoutDashboard, Megaphone, Settings, Shield, Users } from "lucide-react";
 import type { Role, Screen } from "../types/crm";
 
 export interface NavigationItem {
@@ -16,16 +16,18 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "requests", label: "Requests", icon: FileText },
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    { id: "planner", label: "Planner", icon: CalendarClock },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Users", icon: Shield },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "settings", label: "System", icon: Settings },
   ],
   team: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "requests", label: "Requests", icon: FileText },
     { id: "clients", label: "Clients", icon: Users },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    { id: "planner", label: "Planner", icon: CalendarClock },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Users", icon: Shield },
@@ -34,6 +36,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "dashboard", label: "Overview", icon: LayoutDashboard },
     { id: "requests", label: "Requests", icon: FileText },
     { id: "campaigns", label: "Campaigns", icon: Megaphone },
+    { id: "planner", label: "Planner", icon: CalendarClock },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Moderators", icon: Shield },

@@ -88,6 +88,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   };
 
   const action = (user: UserAccount) => {
+<<<<<<< HEAD
     const canManageTarget = currentRole === "admin"
       ? ["team", "client", "moderator"].includes(user.role)
       : currentRole === "team"
@@ -96,6 +97,19 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
     const canEdit = canManageTarget && user._id !== currentUserId;
     const canRemove = canManageTarget && user._id !== currentUserId;
     return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button type="button" className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button type="button" className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
+=======
+    const userClientId = typeof user.client === "object" && user.client ? user.client._id : user.client;
+    const canManageTarget = currentRole === "admin"
+      ? user.role !== "admin" || user._id === currentUserId
+      : currentRole === "team"
+        ? ["client", "moderator"].includes(user.role)
+        : currentRole === "client"
+          ? user.role === "moderator" && userClientId === currentClient
+          : false;
+    const canEdit = canManageTarget;
+    const canRemove = canManageTarget && user.role !== "admin" && user._id !== currentUserId;
+    return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
+>>>>>>> eb7f8a1b9efa25ecb4a0f6368cbb2827ff6ec82c
   };
 
   return (

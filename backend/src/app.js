@@ -14,6 +14,11 @@ import routes from "./routes/index.js";
 
 const app = express();
 const allowedOrigins = new Set(env.clientUrls);
+const isAllowedOrigin = (origin) => {
+  const normalizedOrigin = origin?.replace(/\/$/, "");
+  const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(normalizedOrigin || "");
+  return !origin || allowedOrigins.has(normalizedOrigin) || (!env.isProduction && localOrigin);
+};
 
 app.disable("x-powered-by");
 if (env.trustProxy) app.set("trust proxy", 1);
@@ -24,16 +29,13 @@ app.use((req, res, next) => {
   next();
 });
 app.use(securityHeaders);
+app.use((req, res, next) => {
+  const origin = req.get("Origin");
+  if (origin && !isAllowedOrigin(origin)) return res.status(403).json({ success: false, message: "Origin not allowed" });
+  next();
+});
 app.use(cors({
-  origin(origin, callback) {
-    const normalizedOrigin = origin?.replace(/\/$/, "");
-    const localOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(normalizedOrigin || "");
-    if (!origin || allowedOrigins.has(normalizedOrigin) || (!env.isProduction && localOrigin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error("Not allowed by CORS"));
-  },
+  origin(origin, callback) { callback(null, isAllowedOrigin(origin)); },
   credentials: true,
 }));
 app.use(express.json({ limit: "1mb" }));
