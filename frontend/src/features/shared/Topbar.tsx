@@ -4,10 +4,11 @@ import type { AdRequest, Client, ClientUpdate, Invoice, Screen, Campaign } from 
 
 interface SearchItem { id: string; title: string; meta: string; kind: string; screen: Screen }
 
-export function Topbar({ title, role, userName, onMenu, onLogout, onNavigate, clients, requests, campaigns, invoices, updates }: {
+export function Topbar({ title, role, userName, userId, onMenu, onLogout, onNavigate, clients, requests, campaigns, invoices, updates }: {
   title: string;
   role: string;
   userName: string;
+  userId: string;
   onMenu: () => void;
   onLogout: () => void;
   onNavigate: (screen: Screen) => void;
@@ -20,7 +21,7 @@ export function Topbar({ title, role, userName, onMenu, onLogout, onNavigate, cl
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const unreadUpdates = updates.filter((item) => !(item.readBy?.length));
+  const unreadUpdates = updates.filter((item) => !item.readBy?.some((entry) => (typeof entry.user === "string" ? entry.user : entry.user._id) === userId));
   const pendingRequests = requests.filter((item) => !["Live", "Rejected"].includes(item.status));
   const overdueInvoices = invoices.filter((item) => item.status === "Overdue");
   const staleCampaigns = campaigns.filter((item) => item.isStale || item.status === "failed");

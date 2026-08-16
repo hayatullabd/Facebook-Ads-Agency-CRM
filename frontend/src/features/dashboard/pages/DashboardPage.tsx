@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowRight, ArrowUpRight, CheckCircle2, CircleDollarSign, Clock3, FileText, Megaphone, RefreshCw, Sparkles, Users, WalletCards } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { AdRequest, Campaign, Client, FacebookOverview, Invoice } from "../../../types/crm";
+import type { AdRequest, Campaign, Client, FacebookOverview, Invoice, Role } from "../../../types/crm";
 import { formatDate, formatMoney } from "../../../lib/formatters";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
@@ -16,13 +16,15 @@ const formatInvoiceTotals = (invoices: Invoice[], fallbackCurrency = "USD") => {
 const requestTone = (status: AdRequest["status"]) => status === "Rejected" ? "danger" : status === "Live" ? "success" : "warning";
 const campaignTone = (status: Campaign["status"]) => status === "active" ? "success" : status === "failed" ? "danger" : "warning";
 
-export function DashboardPage({ clients, requests, campaigns, invoices, facebookOverview }: { clients: Client[]; requests: AdRequest[]; campaigns: Campaign[]; invoices: Invoice[]; facebookOverview: FacebookOverview | null }) {
+export function DashboardPage({ role, clients, requests, campaigns, invoices, facebookOverview }: { role: Role; clients: Client[]; requests: AdRequest[]; campaigns: Campaign[]; invoices: Invoice[]; facebookOverview: FacebookOverview | null }) {
   const fallbackCurrency = facebookOverview?.overview?.currency || invoices[0]?.currency || campaigns[0]?.budget?.currency || "USD";
   const unpaidInvoices = invoices.filter((item) => item.status !== "Paid");
   const overdueInvoices = invoices.filter((item) => item.status === "Overdue");
   const pendingRequests = requests.filter((item) => !["Live", "Rejected"].includes(item.status));
   const activeCampaigns = campaigns.filter((item) => item.status === "active");
   const activeClients = clients.filter((item) => item.status === "active");
+  const roleLabel = role === "client" ? "Client overview" : role === "moderator" ? "Client success overview" : "Agency operations";
+  const roleMessage = role === "client" ? "Track your campaigns, requests, and account activity in one place." : role === "moderator" ? "Keep client communication, requests, and campaign health moving forward." : "Review approvals, watch campaign health, and stay ahead of billing follow-ups.";
   const staleCampaigns = campaigns.filter((item) => item.isStale || item.status === "failed");
   const sourceLabel = facebookOverview?.source === "facebook-graph-and-stored-data" ? "Facebook Graph API + CRM records" : "CRM records only";
   const trend = campaigns.slice(0, 8).reverse().map((item, index) => ({ name: `C${index + 1}`, spend: item.performance?.spend || 0 }));
@@ -35,7 +37,7 @@ export function DashboardPage({ clients, requests, campaigns, invoices, facebook
 
   return <div className="space-y-6">
     <section className="relative overflow-hidden rounded-2xl border border-blue-400/15 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.22),_transparent_38%),linear-gradient(135deg,#111827,#0d1422)] p-5 shadow-xl shadow-blue-950/10 sm:p-7">
-      <div className="relative z-10 max-w-2xl"><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200"><Sparkles className="size-3.5" />Operations overview</div><h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Make the next best move for your agency.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">Your workspace at a glance: review approvals, watch campaign health, and stay ahead of client and billing follow-ups.</p><div className="mt-5 flex flex-wrap gap-2"><a href="/requests" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-500 px-4 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-400">Review requests<ArrowRight className="size-4" /></a><a href="/campaigns" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10">View campaign health</a></div></div><div className="pointer-events-none absolute -right-10 -top-20 size-64 rounded-full border border-blue-300/10 bg-blue-400/5 blur-[1px]" /></section>
+      <div className="relative z-10 max-w-2xl"><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200"><Sparkles className="size-3.5" />{roleLabel}</div><h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Make the next best move for your workspace.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">{roleMessage}</p><div className="mt-5 flex flex-wrap gap-2"><a href="/requests" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-blue-500 px-4 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-400">Review requests<ArrowRight className="size-4" /></a><a href="/campaigns" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 text-sm font-semibold text-slate-200 transition hover:bg-white/10">View campaign health</a></div></div><div className="pointer-events-none absolute -right-10 -top-20 size-64 rounded-full border border-blue-300/10 bg-blue-400/5 blur-[1px]" /></section>
 
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{kpis.map(({ label, value, meta, icon: Icon, tone, href }) => <a href={href} key={label} className="group"><Card className="h-full p-4 transition duration-200 group-hover:-translate-y-0.5 group-hover:border-blue-400/30 group-hover:bg-[#151d2d]"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p><p className="mt-2 break-words text-2xl font-bold leading-tight text-slate-100">{value}</p></div><div className={`shrink-0 rounded-xl p-2.5 ${tone}`}><Icon className="size-4" /></div></div><p className="mt-4 flex items-center justify-between gap-2 text-xs text-slate-500"><span>{meta}</span><ArrowUpRight className="size-3.5 transition group-hover:text-blue-300" /></p></Card></a>)}</section>
 

@@ -90,6 +90,7 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
         </div>
       </SidebarNav>
       {open && <button className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}
+      <nav aria-label="Quick navigation" className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-around gap-1 rounded-2xl border border-[#263044] bg-[#101827]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur lg:hidden">{items.slice(0, 4).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)} aria-current={screen === id ? "page" : undefined} className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-semibold transition ${screen === id ? "bg-blue-500/15 text-blue-200" : "text-slate-500 hover:text-slate-200"}`}><Icon className="size-4" /><span className="max-w-full truncate">{label}</span></button>)}</nav>
     </>
   );
 }
@@ -121,7 +122,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
   return (
     <AppShell
       sidebar={<Sidebar screen={screen} items={items} role={session.user.role} open={mobileNavOpen} onNavigate={setScreen} onClose={() => setMobileNavOpen(false)} />}
-      topbar={<Topbar title={title} role={session.user.role} userName={session.user.name} onMenu={() => setMobileNavOpen(true)} onLogout={onLogout} onNavigate={setScreen} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} updates={data.updates} />}
+      topbar={<Topbar title={title} role={session.user.role} userName={session.user.name} userId={session.user._id} onMenu={() => setMobileNavOpen(true)} onLogout={onLogout} onNavigate={setScreen} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} updates={data.updates} />}
     >
       {errorEntries.length > 0 && (
         <div role="alert" className="mb-4 flex flex-col gap-2 rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-200 sm:flex-row sm:items-center sm:justify-between">
@@ -132,7 +133,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
       {loading && <div role="status" className="mb-4 text-sm text-slate-400">Refreshing workspace data...</div>}
       <PageErrorBoundary>
         <Suspense fallback={<PageFallback />}>
-        {screen === "dashboard" && <DashboardPage clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
+        {screen === "dashboard" && <DashboardPage role={session.user.role} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
         {screen === "clients" && <ClientsPage clients={data.clients} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
         {screen === "requests" && <RequestsPage agencyId={agency} clients={data.clients} requests={data.requests} role={session.user.role} currentClient={session.user.client} onCreateRequest={(payload) => mutate(() => createAdRequest(agency, payload))} onUpdateRequest={(id, payload) => mutate(() => updateAdRequest(agency, id, payload))} onDeleteRequest={(id) => mutate(() => deleteAdRequest(agency, id))} onUpdateStatus={(id, payload) => mutate(() => updateRequestStatus(agency, id, payload))} />}
         {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} requests={data.requests} role={session.user.role} onLoadInsights={(range, signal) => getCampaignRangeInsights(agency, range, signal)} onLoadAccountReport={(range, signal) => getAccountReport(agency, range, signal)} onCreateCampaign={(payload) => mutate(() => createCampaign(agency, payload))} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} onDeleteCampaign={(id) => mutate(() => deleteCampaign(agency, id))} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
