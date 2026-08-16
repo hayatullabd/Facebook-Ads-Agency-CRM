@@ -51,7 +51,7 @@ export const registerAccount = async ({ agencyName, name, email, password }) => 
 export const loginAccount = async ({ email, password }) => {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await User.findOne({ email: normalizedEmail }).select("+password");
-  if (!user || !(await user.comparePassword(password))) return null;
+  if (!user || !(await user.comparePassword(password)) || user.isActive === false) return null;
   user.lastLoginAt = new Date();
   await user.save();
   return { user, token: signToken(user) };
