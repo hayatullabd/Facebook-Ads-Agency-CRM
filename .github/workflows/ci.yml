@@ -33,6 +33,10 @@ jobs:
         working-directory: backend
         run: npm run check
 
+      - name: Audit backend production dependencies
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci --no-audit --no-fund
@@ -40,3 +44,7 @@ jobs:
       - name: Type-check and build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Audit frontend production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
