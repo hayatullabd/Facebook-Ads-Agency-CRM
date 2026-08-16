@@ -26,8 +26,18 @@
   .crm-page-title { @apply text-xl font-semibold text-slate-100; }
   .crm-page-subtitle { @apply mt-0.5 text-sm text-slate-400; }
   .crm-responsive-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .crm-sticky-campaign { position: sticky; left: 0; z-index: 2; min-width: 16rem; background: #0d121e; box-shadow: 6px 0 10px -10px rgba(0, 0, 0, 0.9); }
-  tbody .crm-sticky-campaign { background: #0a0e17; }
+  .crm-segmented-control { @apply inline-flex max-w-full rounded-md border border-[#263044] bg-[#0a0e17] p-0.5; }
+  .crm-segmented-control button { @apply min-w-0 rounded px-2.5 py-1.5 text-xs font-medium text-slate-400 transition; }
+  .crm-segmented-control button.active { @apply bg-[#20293a] text-slate-100; }
+  .crm-compact-th { @apply sticky top-0 z-[3] px-3 py-2 align-bottom; }
+  .crm-compact-th > span { display: -webkit-box; max-width: 8.5rem; overflow: hidden; line-height: 1rem; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .crm-compact-cell { @apply border-b border-[#20293a] px-3 py-2 align-middle text-xs text-slate-300; }
+  .crm-compact-select { @apply py-1 text-xs; }
+  .crm-desktop-campaign-table { @apply hidden md:block; }
+  .crm-sticky-campaign { position: sticky; left: 0; z-index: 4; width: 15rem; min-width: 15rem; max-width: 15rem; background: #0d121e; box-shadow: 6px 0 10px -10px rgba(0, 0, 0, 0.9); }
+  .crm-sticky-client { position: sticky; left: 15rem; z-index: 4; width: 10rem; min-width: 10rem; background: #0d121e; box-shadow: 6px 0 10px -10px rgba(0, 0, 0, 0.9); }
+  tbody .crm-sticky-campaign,
+  tbody .crm-sticky-client { background: #0a0e17; }
 }
 
 @media (max-width: 767px) {

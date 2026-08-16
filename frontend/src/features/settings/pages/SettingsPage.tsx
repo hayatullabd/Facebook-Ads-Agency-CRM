@@ -112,6 +112,25 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
     } finally { setBusy(""); }
   };
 
+  const saveFacebook = async () => {
+    const token = accessToken.trim();
+    if (!token) {
+      setError("Enter a Facebook access token before saving Facebook settings.");
+      return;
+    }
+    setBusy("facebook-save"); setError(""); setMessage("");
+    try {
+      await saveFacebookSettings(agencyId, { accessToken: token, defaultAdAccountId: account.trim() || undefined });
+      setAccessToken("");
+      await load();
+      const workspaceOk = await onWorkspaceRefresh();
+      if (workspaceOk) setMessage("Facebook access token saved and ad accounts discovered.");
+      else setError("Facebook access token was saved, but some workspace data could not be refreshed.");
+    } catch (err) {
+      setError(`Facebook access token could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally { setBusy(""); }
+  };
+
   const sync = async () => {
     setBusy("sync"); setError(""); setMessage("");
     try { const next = await enqueueFacebookSync(agencyId); setJob(next); setMessage("Facebook sync queued."); }
@@ -192,12 +211,15 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
             <label><span className="crm-label">Default ad account (optional)</span><input disabled={!accessToken.trim()} className="crm-input" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="act_..." /><span className="mt-1.5 block text-xs text-slate-500">To change the default account, enter a new access token first; otherwise the saved account is kept.</span></label>
             <label><span className="crm-label">Access token</span><div className="relative"><KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" /><input type="password" autoComplete="off" className="crm-input pl-9" value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder={overview?.connection.tokenConfigured ? "Token configured — leave blank to keep" : "Enter Facebook access token"} /></div></label>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">Credentials are encrypted and remain server-side.</p>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => void disconnect(false)} disabled={Boolean(busy) || !connected} className="inline-flex items-center gap-2 rounded-md border border-[#2a3549] px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-amber-500/40 hover:text-amber-300 disabled:opacity-50"><Unplug className="size-3.5" />Disconnect</button>
-              <button type="button" onClick={() => void disconnect(true)} disabled={Boolean(busy) || !connected} className="rounded-md border border-transparent px-3 py-2 text-xs font-medium text-slate-500 transition hover:border-red-500/30 hover:text-red-300 disabled:opacity-50">Revoke access</button>
-            </div>
+          <div className="mt-4 flex flex-col gap-3 border-t border-[#20293a] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">Credentials are encrypted and remain server-side. Saving verifies the token and discovers accessible ad accounts.</p>
+            <Button type="button" onClick={() => void saveFacebook()} disabled={Boolean(busy) || !accessToken.trim()} className="w-full shrink-0 sm:w-auto">
+              <KeyRound className="size-4" />{busy === "facebook-save" ? "Saving token..." : connected ? "Update access token" : "Save access token"}
+            </Button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+            <button type="button" onClick={() => void disconnect(false)} disabled={Boolean(busy) || !connected} className="inline-flex items-center gap-2 rounded-md border border-[#2a3549] px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-amber-500/40 hover:text-amber-300 disabled:opacity-50"><Unplug className="size-3.5" />Disconnect</button>
+            <button type="button" onClick={() => void disconnect(true)} disabled={Boolean(busy) || !connected} className="rounded-md border border-transparent px-3 py-2 text-xs font-medium text-slate-500 transition hover:border-red-500/30 hover:text-red-300 disabled:opacity-50">Revoke access</button>
           </div>
         </Card>
       </div>

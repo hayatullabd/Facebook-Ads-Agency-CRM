@@ -17,7 +17,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   loadError?: string;
   onRetry?: () => void;
   onCreateUser: (payload: { name: string; email: string; password: string; role: Role; client?: string }) => Promise<void>;
-  onUpdateUser: (id: string, payload: { name: string; email: string; role: Role; client: string | null; isActive: boolean }) => Promise<void>;
+  onUpdateUser: (id: string, payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean }) => Promise<void>;
   onRemoveUser: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -62,7 +62,16 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
     event.preventDefault(); setSaving(true); setError("");
     try {
       if (editing) {
-        await onUpdateUser(editing._id, { name, email, role, client: ["client", "moderator"].includes(role) ? client : null, isActive });
+        const originalClient = typeof editing.client === "object" && editing.client ? editing.client._id : typeof editing.client === "string" ? editing.client : null;
+        const nextClient = ["client", "moderator"].includes(role) ? client : null;
+        const payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean } = {};
+        if (name.trim() !== editing.name) payload.name = name.trim();
+        if (email.trim().toLowerCase() !== editing.email.toLowerCase()) payload.email = email.trim();
+        if (role !== editing.role) payload.role = role;
+        if (nextClient !== originalClient) payload.client = nextClient;
+        if (isActive !== editing.isActive) payload.isActive = isActive;
+        if (!Object.keys(payload).length) { close(); return; }
+        await onUpdateUser(editing._id, payload);
       } else {
         await onCreateUser({ name, email, password, role, client: role === "team" ? undefined : client });
       }
@@ -79,9 +88,14 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   };
 
   const action = (user: UserAccount) => {
-    const canEdit = currentRole !== "moderator" && (user.role !== "admin" || currentRole === "admin");
-    const canRemove = user.role !== "admin" && currentRole !== "moderator";
-    return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
+    const canManageTarget = currentRole === "admin"
+      ? ["team", "client", "moderator"].includes(user.role)
+      : currentRole === "team"
+        ? ["client", "moderator"].includes(user.role)
+        : currentRole === "client" && user.role === "moderator";
+    const canEdit = canManageTarget && user._id !== currentUserId;
+    const canRemove = canManageTarget && user._id !== currentUserId;
+    return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button type="button" className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button type="button" className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
   };
 
   return (

@@ -25,7 +25,7 @@ export type CampaignRangeInsight = {
   };
 };
 export type CampaignRangeInsightsResponse = CampaignRangeInsight[];
-export type AccountReportRow = FacebookAdAccount & { todaySpend?: number; yesterdaySpend?: number; mtdSpend?: number; selectedSpend?: number; sourceCurrency?: string; billingLink?: string; campaignLink?: string; error?: { message: string; category: string } | null };
+export type AccountReportRow = FacebookAdAccount & { todaySpend?: number; yesterdaySpend?: number; mtdSpend?: number; selectedSpend?: number; sourceCurrency?: string; billingLink?: string; campaignLink?: string; billingThreshold?: number | null; lastCharge?: number | null; error?: { message: string; category: string } | null };
 export const getAccountReport = (agencyId: string, range: { since: string; until: string }, signal?: AbortSignal) => { const params = new URLSearchParams(range); return apiRequest<AccountReportRow[]>(`/campaigns/${agencyId}/account-report?${params.toString()}`, { signal }); };
 export const createCampaign = (agencyId: string, payload: CreateCampaignPayload) => apiRequest<Campaign>(`/campaigns/${agencyId}`, { method: "POST", body: JSON.stringify(payload) });
 export const deleteCampaign = (agencyId: string, campaignId: string) => apiRequest<null>(`/campaigns/${agencyId}/${campaignId}`, { method: "DELETE" });
