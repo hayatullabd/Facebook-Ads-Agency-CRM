@@ -20,7 +20,7 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "updates", label: "Updates", icon: BellRing },
     { id: "users", label: "Users", icon: Shield },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "settings", label: "System", icon: Settings },
   ],
   team: [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { CheckCircle2, CircleAlert, CircleDashed, Clock3, Database, Facebook, KeyRound, RefreshCw, RotateCcw, Search, Settings2, Unplug } from "lucide-react";
+import { CheckCircle2, CircleAlert, CircleDashed, Clock3, Database, Facebook, KeyRound, RefreshCw, RotateCcw, Search, Unplug } from "lucide-react";
 import type { FacebookOverview, FacebookSyncJob } from "../../../types/crm";
 import { formatMoney } from "../../../lib/formatters";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { Button } from "../../shared/Button";
 import {
-  disconnectFacebook, enqueueFacebookSync, getActiveFacebookSync, getAgency, getFacebookOverview,
-  getFacebookSyncHistory, getFacebookSyncJob, retryFacebookSyncAccount, saveAgencySettings, saveFacebookSettings,
+  disconnectFacebook, enqueueFacebookSync, getActiveFacebookSync, getFacebookOverview,
+  getFacebookSyncHistory, getFacebookSyncJob, retryFacebookSyncAccount, saveFacebookSettings,
 } from "../settingsApi";
 
 const terminal = (job: FacebookSyncJob) => ["success", "partial", "failed"].includes(job.status);
@@ -17,9 +17,6 @@ const statusTone = (status: string): "success" | "danger" | "warning" => status 
 const statusIcon = (status: string) => status === "success" || status === "connected" ? CheckCircle2 : status === "failed" ? CircleAlert : CircleDashed;
 
 export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: string; onWorkspaceRefresh: () => Promise<boolean> }) {
-  const [agencyName, setAgencyName] = useState("");
-  const [defaultRate, setDefaultRate] = useState("");
-  const [defaultCurrency, setDefaultCurrency] = useState<"BDT" | "USD" | "INR">("BDT");
   const [accessToken, setAccessToken] = useState("");
   const [account, setAccount] = useState("");
   const [overview, setOverview] = useState<FacebookOverview | null>(null);
@@ -36,11 +33,11 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
   const refreshedJobs = useRef(new Set<string>());
 
   const load = useCallback(async () => {
-    const [agency, facebook, active, jobs] = await Promise.all([
-      getAgency(agencyId), getFacebookOverview(agencyId), getActiveFacebookSync(agencyId), getFacebookSyncHistory(agencyId, 10),
+    const [facebook, active, jobs] = await Promise.all([
+      getFacebookOverview(agencyId), getActiveFacebookSync(agencyId), getFacebookSyncHistory(agencyId, 10),
     ]);
     if (!alive.current) return;
-    setAgencyName(agency.name); setDefaultRate(String(agency.defaultRate)); setDefaultCurrency(agency.defaultCurrency); setOverview(facebook);
+    setOverview(facebook);
     setAccount(facebook.connection.adAccountId || ""); setJob(active); setHistory(jobs);
   }, [agencyId]);
 
@@ -81,35 +78,16 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
 
   const save = async (event: FormEvent) => {
     event.preventDefault(); setBusy("save"); setError(""); setMessage("");
+    if (!accessToken.trim()) { setError("Enter a new Facebook access token before saving connection settings."); setBusy(""); return; }
     try {
-      await saveAgencySettings(agencyId, { name: agencyName, defaultRate: Number(defaultRate), defaultCurrency });
-    } catch (err) {
-      setError(`Agency profile could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`);
-      setBusy("");
-      return;
-    }
-
-    const savingFacebookSettings = Boolean(accessToken.trim());
-    if (savingFacebookSettings) {
-      try {
-        await saveFacebookSettings(agencyId, { accessToken, defaultAdAccountId: account || undefined });
-        setAccessToken("");
-      } catch (err) {
-        setError(`Agency profile was saved, but Facebook settings could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`);
-        setBusy("");
-        return;
-      }
-    }
-
-    const workspaceOk = await onWorkspaceRefresh();
-    try {
+      await saveFacebookSettings(agencyId, { accessToken, defaultAdAccountId: account || undefined });
+      setAccessToken("");
+      const workspaceOk = await onWorkspaceRefresh();
       await load();
-      const savedMessage = savingFacebookSettings ? "Agency profile and Facebook settings saved successfully." : "Agency profile saved successfully.";
-      if (workspaceOk) setMessage(savedMessage);
-      else setError(`${savedMessage} Some workspace data could not be refreshed.`);
-    } catch (err) {
-      setError(`Settings were saved, but the latest settings could not be reloaded: ${err instanceof Error ? err.message : "Unknown error"}`);
-    } finally { setBusy(""); }
+      if (workspaceOk) setMessage("Facebook connection settings saved successfully.");
+      else setError("Facebook settings were saved, but some workspace data could not be refreshed.");
+    } catch (err) { setError(`Facebook connection settings could not be saved: ${err instanceof Error ? err.message : "Unknown error"}`); }
+    finally { setBusy(""); }
   };
 
   const sync = async () => {
@@ -154,27 +132,13 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
 
   return <form onSubmit={save} className="space-y-5">
     <div>
-      <h2 className="crm-page-title">Workspace settings</h2>
-      <p className="crm-page-subtitle">Agency defaults and reliable Facebook synchronization</p>
+      <h2 className="crm-page-title">System settings</h2>
+      <p className="crm-page-subtitle">Facebook connection, synchronization health, and workspace operations</p>
     </div>
     {error && <div role="alert" className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
     {message && <div role="status" className="flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300"><CheckCircle2 className="size-4" />{message}</div>}
-    {loading ? <Card className="p-5 text-sm text-slate-400">Loading agency settings...</Card> : <>
-      <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
-        <Card className="p-5">
-          <div className="mb-5 flex justify-between">
-            <div><h3 className="font-semibold">Agency profile</h3><p className="text-xs text-slate-400">Workspace naming and billing defaults</p></div>
-            <Settings2 className="size-5 text-blue-400" />
-          </div>
-          <div className="space-y-4">
-            <label><span className="crm-label">Agency name</span><input required className="crm-input" value={agencyName} onChange={(e) => setAgencyName(e.target.value)} /></label>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label><span className="crm-label">Default billing rate</span><input required min="1" type="number" className="crm-input" value={defaultRate} onChange={(e) => setDefaultRate(e.target.value)} /></label>
-              <label><span className="crm-label">Default currency</span><select className="crm-input" value={defaultCurrency} onChange={(e) => setDefaultCurrency(e.target.value as "BDT" | "USD" | "INR")}><option value="BDT">BDT</option><option value="USD">USD</option><option value="INR">INR</option></select></label>
-            </div>
-          </div>
-        </Card>
-
+    {loading ? <Card className="p-5 text-sm text-slate-400">Loading system settings...</Card> : <>
+      <div className="grid gap-4 lg:grid-cols-1">
         <Card className="p-5">
           <div className="flex flex-col gap-4 border-b border-[#20293a] pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-3">
@@ -276,7 +240,7 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
           </button>;
         }) : <div className="border border-dashed border-[#2a3549] p-6 text-center"><Clock3 className="mx-auto size-5 text-slate-500" /><p className="mt-2 text-sm font-medium">{historyFiltered ? "No matching sync jobs" : connected ? "No sync history yet" : "No Facebook connection"}</p><p className="mt-1 text-xs text-slate-500">{historyFiltered ? "Try changing your search or filter selections." : connected ? "Completed and failed sync jobs will be listed here." : "Connect Facebook and run a sync to build account history."}</p></div>}</div>
       </Card>
-      <div className="flex justify-end"><Button disabled={busy === "save" || !agencyName.trim() || !defaultRate}>{busy === "save" ? "Saving..." : "Save Settings"}</Button></div>
+      <div className="flex justify-end"><Button disabled={busy === "save" || !accessToken.trim()}>{busy === "save" ? "Saving..." : "Save connection settings"}</Button></div>
     </>}
   </form>;
 }
