@@ -6,6 +6,7 @@ import { validateClientAndAdRequest } from "./referenceValidation.service.js";
 
 const normalizeId = (value) => (value?._id ? String(value._id) : String(value));
 const canManageRole = (actor, targetRole, targetClient) => {
+  if (actor.role === "owner") return ["admin", "team", "client", "moderator"].includes(targetRole);
   if (actor.role === "admin") return ["team", "client", "moderator"].includes(targetRole);
   if (actor.role === "team") return ["client", "moderator"].includes(targetRole);
   if (actor.role === "client") return targetRole === "moderator" && normalizeId(actor.client) === normalizeId(targetClient);
@@ -33,7 +34,8 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
   if (!target) throw new ApiError(404, "User not found");
 
   const isSelf = normalizeId(actor._id) === normalizeId(target._id);
-  const canManageTarget = canManageRole(actor, target.role, target.client) || (actor.role === "admin" && target.role === "admin" && isSelf);
+  const canManageTarget = canManageRole(actor, target.role, target.client)
+    || (["owner", "admin"].includes(actor.role) && actor.role === target.role && isSelf);
   if (!canManageTarget) throw new ApiError(403, "You do not have permission to update this user");
 
   const nextRole = fields.role ?? target.role;
@@ -46,9 +48,9 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
   if (isSelf && (nextRole !== target.role || fields.isActive === false)) {
     throw new ApiError(409, "You cannot demote or deactivate your own account");
   }
-  if (target.role === "admin" && (nextRole !== "admin" || fields.isActive === false)) {
-    const activeAdminCount = await User.countDocuments({ agency: agencyId, role: "admin", isActive: true });
-    if (activeAdminCount <= 1) throw new ApiError(409, "The last active admin cannot be demoted or deactivated");
+  if (["owner", "admin"].includes(target.role) && (nextRole !== target.role || fields.isActive === false)) {
+    const activeRoleCount = await User.countDocuments({ agency: agencyId, role: target.role, isActive: true });
+    if (activeRoleCount <= 1) throw new ApiError(409, `The last active ${target.role} cannot be demoted or deactivated`);
   }
 
   if (["client", "moderator"].includes(nextRole)) {
@@ -74,7 +76,11 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
 export const removeManagedUser = async ({ agencyId, actor, userId }) => {
   const target = await User.findOne({ _id: userId, agency: agencyId });
   if (!target) throw new ApiError(404, "User not found");
-  if (target.role === "admin" || !canManageRole(actor, target.role, target.client)) throw new ApiError(403, "You do not have permission to remove this user");
+  if (target.role === "owner" || !canManageRole(actor, target.role, target.client)) throw new ApiError(403, "You do not have permission to remove this user");
+  if (target.role === "admin") {
+    const activeAdminCount = await User.countDocuments({ agency: agencyId, role: "admin", isActive: true });
+    if (activeAdminCount <= 1) throw new ApiError(409, "The last active admin cannot be removed");
+  }
   await target.deleteOne();
 };
 

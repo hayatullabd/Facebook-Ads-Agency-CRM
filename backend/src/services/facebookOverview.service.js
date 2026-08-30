@@ -11,8 +11,27 @@ const GRAPH_HOST = "graph.facebook.com";
 const GRAPH_API_BASE_URL = `https://${GRAPH_HOST}/${env.facebookGraphVersion}`;
 const ACCOUNT_FIELDS = "id,account_id,name,account_status,currency,timezone_name,balance,amount_spent,spend_cap";
 const CAMPAIGN_FIELDS = "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,updated_time";
-const INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions,ctr";
+const CAMPAIGN_INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions,ctr";
+const AD_SET_INSIGHT_FIELDS = "campaign_id,adset_id,impressions,reach,actions";
+const AD_SET_FIELDS = "id,campaign_id,optimization_goal";
 const ACCOUNT_INSIGHT_FIELDS = "spend";
+
+const AD_SET_RESULT_CONFIG = {
+  OFFSITE_CONVERSIONS: { label: "Website Purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase", "offsite_conversion"] },
+  VALUE: { label: "Website Purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase", "offsite_conversion"] },
+  CONVERSATIONS: { label: "Messaging Conversations", actions: ["onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d", "messaging_first_reply"] },
+  REPLIES: { label: "Messaging Conversations", actions: ["messaging_first_reply", "onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d"] },
+  POST_ENGAGEMENT: { label: "Post Engagement", actions: ["post_engagement"] },
+  PAGE_LIKES: { label: "Page Likes", actions: ["page_like", "like"] },
+  LINK_CLICKS: { label: "Link Clicks", actions: ["link_click"] },
+  LEAD_GENERATION: { label: "Leads", actions: ["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead"] },
+  IMPRESSIONS: { label: "Impressions", field: "impressions" },
+  REACH: { label: "Reach", field: "reach" },
+  THRUPLAY: { label: "Video Views", actions: ["video_thruplay_watched_actions", "video_thruplay", "thruplay", "video_view"] },
+  QUALITY_CALL: { label: "Phone Calls", actions: ["click_to_call_call_confirm", "phone_call_click"] },
+  APP_INSTALLS: { label: "App Installs", actions: ["mobile_app_install", "app_install"] },
+  LANDING_PAGE_VIEWS: { label: "Landing Page Views", actions: ["landing_page_view"] },
+};
 
 class GraphApiError extends ApiError {
   constructor(statusCode, message, category = "request") {
@@ -38,6 +57,21 @@ function selectedResultFromActions(actions) {
     if (action) return { value: number(action.value), metric: type };
   }
   return { value: 0, metric: "" };
+}
+function adSetResult(row) {
+  const optimizationGoal = String(row.optimization_goal || "").toUpperCase();
+  const config = AD_SET_RESULT_CONFIG[optimizationGoal];
+  if (!config) return selectedResultFromActions(row.actions);
+  if (config.field) return { value: number(row[config.field]), metric: config.label };
+  const action = config.actions
+    .map((type) => row.actions?.find((item) => item?.action_type === type))
+    .find(Boolean);
+  return { value: number(action?.value), metric: config.label };
+}
+function mergeActions(target, actions) {
+  for (const action of normalizeActions(actions)) {
+    target.set(action.actionType, (target.get(action.actionType) || 0) + action.value);
+  }
 }
 function usdRateFor(currency) {
   const sourceCurrency = String(currency || "USD").toUpperCase();
@@ -90,28 +124,59 @@ async function fetchAll(path, accessToken) {
   return rows;
 }
 
-export async function fetchFacebookCampaignInsights({ facebookAdAccountId, accessToken, since, until, currency }) {
+const rangeInsightsCache = new Map();
+const RANGE_INSIGHTS_CACHE_TTL_MS = 90_000;
+
+async function fetchFacebookCampaignInsightsUncached({ facebookAdAccountId, accessToken, since, until, currency }) {
   const sourceCurrency = String(currency || "").trim().toUpperCase();
   if (!sourceCurrency) throw new GraphApiError(422, `Facebook currency is unavailable for ad account ${facebookAdAccountId}`, "currency");
   const usdRate = usdRateFor(sourceCurrency).rate;
-  const params = new URLSearchParams({
-    fields: INSIGHT_FIELDS,
+  const timeRange = JSON.stringify({ since, until });
+  const campaignParams = new URLSearchParams({
+    fields: CAMPAIGN_INSIGHT_FIELDS,
     level: "campaign",
-    time_range: JSON.stringify({ since, until }),
+    time_range: timeRange,
   });
-  const rows = await fetchAll(`/${facebookAdAccountId}/insights?${params.toString()}`, accessToken);
-  return rows.filter((row) => row?.campaign_id).map((row) => {
-    const selectedResult = selectedResultFromActions(row.actions);
+  const adSetParams = new URLSearchParams({
+    fields: AD_SET_INSIGHT_FIELDS,
+    level: "adset",
+    time_range: timeRange,
+  });
+  const [campaignRows, adSetRows, adSets] = await Promise.all([
+    fetchAll(`/${facebookAdAccountId}/insights?${campaignParams.toString()}`, accessToken),
+    fetchAll(`/${facebookAdAccountId}/insights?${adSetParams.toString()}`, accessToken),
+    fetchAll(`/${facebookAdAccountId}/adsets?fields=${AD_SET_FIELDS}`, accessToken),
+  ]);
+  const goalsByAdSet = new Map(adSets.filter((row) => row?.id).map((row) => [String(row.id), row.optimization_goal]));
+  const resultsByCampaign = new Map();
+  for (const row of adSetRows.filter((item) => item?.campaign_id)) {
+    const key = String(row.campaign_id);
+    const existing = resultsByCampaign.get(key) || {
+      actions: new Map(),
+      results: 0,
+      resultMetrics: new Set(),
+      landingPageViews: 0,
+    };
+    const selectedResult = adSetResult({ ...row, optimization_goal: goalsByAdSet.get(String(row.adset_id)) });
+    existing.results += selectedResult.value;
+    if (selectedResult.metric) existing.resultMetrics.add(selectedResult.metric);
+    existing.landingPageViews += number(row.actions?.find((action) => action?.action_type === "landing_page_view")?.value);
+    mergeActions(existing.actions, row.actions);
+    resultsByCampaign.set(key, existing);
+  }
+  return campaignRows.filter((row) => row?.campaign_id).map((row) => {
+    const facebookCampaignId = String(row.campaign_id);
+    const result = resultsByCampaign.get(facebookCampaignId) || { actions: new Map(), results: 0, resultMetrics: new Set(), landingPageViews: 0 };
     const spend = number(row.spend) * usdRate;
     return {
-      facebookCampaignId: String(row.campaign_id),
-      actions: normalizeActions(row.actions),
-      results: selectedResult.value,
-      resultMetric: selectedResult.metric,
-      landingPageViews: number(row.actions?.find((action) => action?.action_type === "landing_page_view")?.value),
+      facebookCampaignId,
+      actions: [...result.actions.entries()].map(([actionType, value]) => ({ actionType, value })),
+      results: result.results,
+      resultMetric: [...result.resultMetrics].join(" + "),
+      landingPageViews: result.landingPageViews,
       spend,
       amountSpent: spend,
-      costPerResult: selectedResult.value ? spend / selectedResult.value : 0,
+      costPerResult: result.results ? spend / result.results : 0,
       ctrAll: number(row.ctr),
       reach: number(row.reach),
       impressions: number(row.impressions),
@@ -119,6 +184,27 @@ export async function fetchFacebookCampaignInsights({ facebookAdAccountId, acces
     };
   });
 }
+
+export function fetchFacebookCampaignInsights(options) {
+  const key = [options.facebookAdAccountId, options.since, options.until, String(options.currency || "").toUpperCase()].join(":");
+  const now = Date.now();
+  const cached = rangeInsightsCache.get(key);
+  if (cached && (cached.promise || cached.expiresAt > now)) return cached.promise || Promise.resolve(cached.value);
+  if (cached) rangeInsightsCache.delete(key);
+
+  const promise = fetchFacebookCampaignInsightsUncached(options)
+    .then((value) => {
+      rangeInsightsCache.set(key, { value, expiresAt: Date.now() + RANGE_INSIGHTS_CACHE_TTL_MS });
+      return value;
+    })
+    .catch((error) => {
+      rangeInsightsCache.delete(key);
+      throw error;
+    });
+  rangeInsightsCache.set(key, { promise, expiresAt: now + RANGE_INSIGHTS_CACHE_TTL_MS });
+  return promise;
+}
+
 function accountDto(account) {
   return {
     facebookAdAccountId: normalizeAdAccountId(account.facebookAdAccountId || account.id),
@@ -209,7 +295,7 @@ async function syncAccount(agencyId, account, accessToken) {
   const accountId = account.facebookAdAccountId;
   const [campaigns, insights] = await Promise.all([
     fetchAll(`/${accountId}/campaigns?fields=${CAMPAIGN_FIELDS}`, accessToken),
-    fetchAll(`/${accountId}/insights?fields=${INSIGHT_FIELDS}&level=campaign&date_preset=last_30d`, accessToken),
+    fetchAll(`/${accountId}/insights?fields=${CAMPAIGN_INSIGHT_FIELDS}&level=campaign&date_preset=last_30d`, accessToken),
   ]);
   const insightMap = new Map(insights.filter((row) => row.campaign_id).map((row) => [String(row.campaign_id), row]));
   const seenIds = [];

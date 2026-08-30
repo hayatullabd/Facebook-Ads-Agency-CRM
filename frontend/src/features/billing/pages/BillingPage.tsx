@@ -118,14 +118,11 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
     } catch { /* surfaced */ }
   };
 
-  return <div className="space-y-4">
-    <div className="flex items-center justify-between gap-3">
-      <div><h2 className="crm-page-title">Billing & finance</h2><p className="crm-page-subtitle">Invoice status and outstanding balances</p></div>
-      {canManage && <Button onClick={startCreate}><Plus className="size-4"/>New invoice</Button>}
-    </div>
+  return <div className="crm-light-portal space-y-3">
+    <div className="crm-page-header"><div className="crm-page-header-main"><div className="crm-page-header-tab"><h2 className="crm-page-title">Billing & finance</h2></div><div className="crm-page-header-meta"><p className="crm-page-subtitle">Invoice status and outstanding balances</p></div></div>{canManage && <Button onClick={startCreate}><Plus className="size-4"/>New invoice</Button>}</div>
     <div className="grid gap-3 sm:grid-cols-2">
-      <Card className="p-4"><p className="text-[11px] uppercase text-slate-500">Total billed</p><p className="mt-2 break-words text-xl font-bold">{totals(invoices)}</p></Card>
-      <Card className="p-4"><p className="text-[11px] uppercase text-slate-500">Outstanding</p><p className="mt-2 break-words text-xl font-bold text-red-400">{totals(invoices.filter((item) => item.status !== "Paid"))}</p></Card>
+      <Card className="p-3"><p className="text-[11px] uppercase text-slate-500">Total billed</p><p className="mt-1.5 break-words text-lg font-bold">{totals(invoices)}</p></Card>
+      <Card className="p-3"><p className="text-[11px] uppercase text-slate-500">Outstanding</p><p className="mt-1.5 break-words text-lg font-bold text-red-400">{totals(invoices.filter((item) => item.status !== "Paid"))}</p></Card>
     </div>
     {error && !open && <div role="alert" className="rounded-md bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
     <Card>
@@ -141,12 +138,12 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
     {open && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
       <Card className="max-h-[90vh] w-full max-w-2xl overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="invoice-title">
         <div className="flex items-center justify-between border-b border-[#20293a] p-4"><h3 id="invoice-title" className="font-semibold">{editing ? "Edit unpaid invoice" : "Create invoice"}</h3><button className="crm-icon-button" onClick={close} aria-label="Close"><X className="size-4"/></button></div>
-        <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2">
+        <form onSubmit={submit} className="grid gap-3 p-4 sm:grid-cols-2">
           {error && <div role="alert" className="rounded-md bg-red-500/10 p-3 text-sm text-red-300 sm:col-span-2">{error}</div>}
           {!editing && <>
             <label><span className="crm-label">Client</span><select required className="crm-input" value={client} onChange={(event) => { setClient(event.target.value); setAdRequest(""); }}><option value="">Select client</option>{clients.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select></label>
             <label><span className="crm-label">Linked request</span><select required className="crm-input" value={adRequest} onChange={(event) => setAdRequest(event.target.value)} disabled={!client}><option value="">Select approved or live request</option>{matchingRequests.map((item) => <option key={item._id} value={item._id}>{item.requestNumber} · {item.pageName}</option>)}</select></label>
-            {selectedRequest && selectedClient && <div className="grid gap-x-4 gap-y-3 rounded-md border border-[#20293a] bg-[#111722] p-4 text-sm sm:col-span-2 sm:grid-cols-2">
+            {selectedRequest && selectedClient && <div className="grid gap-x-4 gap-y-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm sm:col-span-2 sm:grid-cols-2">
               <div><p className="crm-label">Page</p><p>{selectedRequest.pageName}</p></div>
               <div><p className="crm-label">Objective</p><p>{selectedRequest.objective}</p></div>
               <div><p className="crm-label">Budget</p><p>{formatMoney(selectedRequest.budget.amount, selectedRequest.budget.currency)} / {selectedRequest.budget.type}</p></div>

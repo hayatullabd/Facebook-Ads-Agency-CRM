@@ -20,7 +20,16 @@ export interface AuthResponse {
   token: string;
 }
 
-const roles: Role[] = ["admin", "team", "client", "moderator"];
+export interface PendingRegistrationResponse {
+  status: "pending";
+  message?: string;
+  user?: Pick<AuthUser, "_id" | "name" | "email" | "role">;
+}
+
+export type RegistrationResponse = AuthResponse | PendingRegistrationResponse;
+export type RegistrationMode = "create" | "join";
+
+const roles: Role[] = ["owner", "admin", "team", "client", "moderator"];
 
 const isAuthUser = (value: unknown): value is AuthUser => {
   if (!value || typeof value !== "object") return false;
@@ -33,12 +42,14 @@ const isAuthUser = (value: unknown): value is AuthUser => {
     && (user.client === undefined || user.client === null || typeof user.client === "string");
 };
 
+export const isAuthResponse = (response: RegistrationResponse): response is AuthResponse => "token" in response;
+
 export const login = (payload: { email: string; password: string }) => apiRequest<AuthResponse>("/auth/login", {
   method: "POST",
   body: JSON.stringify(payload),
 });
 
-export const register = (payload: { agencyName: string; name: string; email: string; password: string }) => apiRequest<AuthResponse>("/auth/register", {
+export const register = (payload: { agencyName: string; name: string; email: string; password: string; mode?: RegistrationMode }) => apiRequest<RegistrationResponse>("/auth/register", {
   method: "POST",
   body: JSON.stringify(payload),
 });

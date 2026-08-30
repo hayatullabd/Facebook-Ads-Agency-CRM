@@ -5,5 +5,5 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 export function Card({ children, className = "", ...props }: CardProps) {
-  return <div {...props} className={`overflow-hidden rounded-md border border-[#20293a] bg-[#131827] text-slate-100 shadow-[0_7px_20px_rgba(0,0,0,0.12)] ${className}`}>{children}</div>;
+  return <div {...props} className={`overflow-hidden rounded-md border border-[#dce2ea] bg-white text-[#17243b] shadow-[0_1px_3px_rgba(15,35,65,0.06)] ${className}`}>{children}</div>;
 }

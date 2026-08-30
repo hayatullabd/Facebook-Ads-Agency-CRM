@@ -7,6 +7,13 @@ export const register = asyncHandler(async (req, res) => {
   const result = await registerAccount(req.body);
   if (result.passwordError) return res.status(400).json({ success: false, message: result.passwordError });
   if (result.duplicateError) return res.status(409).json({ success: false, message: result.duplicateError });
+  if (result.pending) {
+    return res.status(202).json(new ApiResponse(202, {
+      status: "pending",
+      user: serializePublicUser(result.user),
+      agency: result.agency,
+    }, "Registration submitted for approval"));
+  }
   res.status(201).json(new ApiResponse(201, {
     user: serializePublicUser(result.user),
     agency: result.agency,

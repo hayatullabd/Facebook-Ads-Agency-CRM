@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
-import { BellRing, CalendarClock, CreditCard, FileText, LayoutDashboard, Megaphone, Settings, Shield, Users } from "lucide-react";
+import { BriefcaseBusiness, CreditCard, FileText, LayoutDashboard, Megaphone, ReceiptText, Settings, Users } from "lucide-react";
 import type { Role, Screen } from "../types/crm";
 
 export interface NavigationItem {
@@ -10,56 +10,56 @@ export interface NavigationItem {
   icon: LucideIcon;
 }
 
+const primaryItems = {
+  dashboard: { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  settings: { id: "settings", label: "System Profile", icon: Settings },
+  clients: { id: "clients", label: "Clients", icon: Users },
+  requests: { id: "requests", label: "Ad Requests", icon: FileText },
+  campaigns: { id: "campaigns", label: "Live Campaigns", icon: Megaphone },
+  adaccounts: { id: "adaccounts", label: "Ad Accounts", icon: BriefcaseBusiness },
+  billing: { id: "billing", label: "Payment Dues", icon: CreditCard },
+  payment_details: { id: "payment_details", label: "Payment Details", icon: ReceiptText },
+} satisfies Partial<Record<Screen, NavigationItem>>;
+
 export const NAVIGATION: Record<Role, NavigationItem[]> = {
-  admin: [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "requests", label: "Requests", icon: FileText },
-    { id: "clients", label: "Clients", icon: Users },
-    { id: "campaigns", label: "Campaigns", icon: Megaphone },
-    { id: "planner", label: "Planner", icon: CalendarClock },
-    { id: "billing", label: "Billing", icon: CreditCard },
-    { id: "updates", label: "Updates", icon: BellRing },
-    { id: "users", label: "Users", icon: Shield },
-    { id: "settings", label: "System", icon: Settings },
-  ],
-  team: [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "requests", label: "Requests", icon: FileText },
-    { id: "clients", label: "Clients", icon: Users },
-    { id: "campaigns", label: "Campaigns", icon: Megaphone },
-    { id: "planner", label: "Planner", icon: CalendarClock },
-    { id: "billing", label: "Billing", icon: CreditCard },
-    { id: "updates", label: "Updates", icon: BellRing },
-    { id: "users", label: "Users", icon: Shield },
-  ],
-  client: [
-    { id: "dashboard", label: "Overview", icon: LayoutDashboard },
-    { id: "requests", label: "Requests", icon: FileText },
-    { id: "campaigns", label: "Campaigns", icon: Megaphone },
-    { id: "planner", label: "Planner", icon: CalendarClock },
-    { id: "billing", label: "Billing", icon: CreditCard },
-    { id: "updates", label: "Updates", icon: BellRing },
-    { id: "users", label: "Moderators", icon: Shield },
-  ],
-  moderator: [
-    { id: "dashboard", label: "Overview", icon: LayoutDashboard },
-    { id: "requests", label: "Requests", icon: FileText },
-    { id: "updates", label: "Updates", icon: BellRing },
-    { id: "users", label: "Members", icon: Shield },
-  ],
+  admin: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.settings],
+  team: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
+  client: [primaryItems.dashboard, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
+  moderator: [primaryItems.dashboard, primaryItems.requests],
+};
+
+const ROLE_SCREENS: Record<Role, Screen[]> = {
+  admin: ["dashboard", "settings", "requests", "campaigns", "adaccounts", "billing", "payment_details", "clients", "planner", "updates", "users"],
+  team: ["dashboard", "requests", "campaigns", "billing", "payment_details", "clients", "planner", "updates", "users"],
+  client: ["dashboard", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
+  moderator: ["dashboard", "requests", "updates", "users"],
+};
+
+const SCREEN_TITLES: Record<Screen, string> = {
+  dashboard: "Dashboard",
+  settings: "System Profile",
+  requests: "Ad Requests",
+  campaigns: "Live Campaigns",
+  adaccounts: "Ad Accounts",
+  billing: "Payment Dues",
+  payment_details: "Payment Details",
+  clients: "Clients",
+  planner: "Planner",
+  updates: "Updates",
+  users: "Users",
 };
 
 export function useNavigationController(role: Role) {
   const location = useLocation();
   const navigate = useNavigate();
   const items = NAVIGATION[role];
-  const requested = location.pathname.replace(/^\//, "") as Screen;
-  const screen = items.some((item) => item.id === requested) ? requested : "dashboard";
+  const requested = location.pathname.split("/").filter(Boolean)[0] as Screen | undefined;
+  const screen = requested && ROLE_SCREENS[role].includes(requested) ? requested : "dashboard";
 
   useEffect(() => {
-    if (location.pathname !== `/${screen}`) navigate(`/${screen}`, { replace: true });
-  }, [location.pathname, navigate, screen]);
+    if (!requested || !ROLE_SCREENS[role].includes(requested)) navigate(`/${screen}`, { replace: true });
+  }, [navigate, requested, role, screen]);
 
-  const title = useMemo(() => items.find((item) => item.id === screen)?.label || "Dashboard", [items, screen]);
+  const title = useMemo(() => SCREEN_TITLES[screen], [screen]);
   return { items, screen, title, setScreen: (next: Screen) => navigate(`/${next}`) };
 }

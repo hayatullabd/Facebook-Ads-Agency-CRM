@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { WORKSPACE_STATUSES } from "../constants/roles.js";
 
 const agencySchema = new mongoose.Schema(
   {
@@ -35,10 +36,17 @@ const agencySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      enum: Object.values(WORKSPACE_STATUSES),
+      default: WORKSPACE_STATUSES.ACTIVE,
+      index: true,
+    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
+      index: true,
     },
   },
   { timestamps: true }

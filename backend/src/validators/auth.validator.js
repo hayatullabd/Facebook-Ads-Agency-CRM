@@ -9,4 +9,5 @@ export const validateRegistration = validateObject({
   name: { required: true, type: "string", minLength: 2, maxLength: 100, trim: true },
   email: { required: true, type: "string", email: true, trim: true },
   password: { required: true, type: "string", minLength: 12 },
-});
+  mode: { type: "string", enum: ["create", "join"] },
+}, "body", true);

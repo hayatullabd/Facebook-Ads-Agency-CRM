@@ -49,18 +49,18 @@ export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthRes
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0a0e17] px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-7 flex flex-col items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-950/40"><Megaphone className="size-5" /></div>
-          <div className="text-center"><h1 className="text-2xl font-bold text-white">AdFlow Pro</h1><p className="mt-1 text-sm text-slate-500">Facebook Ads agency operations, in one place</p></div>
+    <div className="crm-auth-portal flex min-h-screen items-center justify-center px-4 py-6 sm:py-8">
+      <div className="w-full max-w-sm">
+        <div className="mb-5 flex flex-col items-center gap-2">
+          <div className="flex size-10 items-center justify-center rounded-md bg-[#142b4a] text-white shadow-sm"><Megaphone className="size-5" /></div>
+          <div className="text-center"><h1 className="text-xl font-bold text-[#10243e]">AdFlow Pro</h1><p className="mt-0.5 text-xs text-slate-500">Facebook Ads agency operations, in one place</p></div>
         </div>
-        <div className="overflow-hidden rounded-lg border border-[#20293a] bg-[#131827] shadow-2xl shadow-black/30">
-          <div className="grid grid-cols-2 border-b border-[#20293a]">
-            {(["login", "register"] as Mode[]).map((item) => <button key={item} type="button" onClick={() => { setMode(item); setError(""); setPassword(""); }} className={`py-3.5 text-sm font-semibold capitalize transition ${mode === item ? "border-b-2 border-blue-500 bg-blue-500/5 text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>{item === "login" ? "Sign In" : "Sign Up"}</button>)}
+        <div className="crm-auth-card overflow-hidden rounded-md border bg-white shadow-xl">
+          <div className="crm-auth-tabs grid grid-cols-2 border-b border-slate-200">
+            {(["login", "register"] as Mode[]).map((item) => <button key={item} type="button" onClick={() => { setMode(item); setError(""); setPassword(""); }} className={`py-2.5 text-xs font-semibold capitalize transition ${mode === item ? "active border-b-2 border-[#142b4a] bg-slate-50 text-[#142b4a]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>{item === "login" ? "Sign In" : "Sign Up"}</button>)}
           </div>
-          <form onSubmit={handleSubmit} className="space-y-4 p-6">
-            <div><h2 className="text-lg font-semibold text-slate-100">{mode === "login" ? "Welcome back" : "Create your agency"}</h2><p className="mt-1 text-sm text-slate-500">{mode === "login" ? "Enter your credentials to continue." : "Set up the admin account for your workspace."}</p></div>
+          <form onSubmit={handleSubmit} className="space-y-3.5 p-4 sm:p-5">
+            <div><h2 className="text-base font-semibold text-slate-900">{mode === "login" ? "Welcome back" : "Create your agency"}</h2><p className="mt-0.5 text-xs text-slate-500">{mode === "login" ? "Enter your credentials to continue." : "Set up the admin account for your workspace."}</p></div>
             {message && <div role="status" className="rounded-md border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-200">{message}</div>}
             {error && <div role="alert" className="flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"><AlertCircle className="mt-0.5 size-4 shrink-0" />{error}</div>}
             {mode === "register" && <><div><label className="crm-label" htmlFor="agency-name">Agency name</label><input id="agency-name" required value={agencyName} onChange={(e) => setAgencyName(e.target.value)} className="crm-input" autoComplete="organization" /></div><div><label className="crm-label" htmlFor="full-name">Full name</label><input id="full-name" required value={name} onChange={(e) => setName(e.target.value)} className="crm-input" autoComplete="name" /></div></>}

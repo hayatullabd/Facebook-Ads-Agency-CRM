@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { PLATFORM_ROLES, ROLES, USER_STATUSES } from "../constants/roles.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -36,8 +37,20 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "team", "client", "moderator"],
-      default: "client",
+      enum: Object.values(ROLES),
+      default: ROLES.CLIENT,
+      index: true,
+    },
+    platformRole: {
+      type: String,
+      enum: Object.values(PLATFORM_ROLES),
+      default: PLATFORM_ROLES.USER,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(USER_STATUSES),
+      default: USER_STATUSES.ACTIVE,
       index: true,
     },
     avatarColor: {

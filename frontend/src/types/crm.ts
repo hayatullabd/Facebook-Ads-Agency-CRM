@@ -1,4 +1,4 @@
-export type Screen = "dashboard" | "requests" | "clients" | "campaigns" | "planner" | "billing" | "settings" | "updates" | "users";
+export type Screen = "dashboard" | "settings" | "requests" | "campaigns" | "adaccounts" | "billing" | "payment_details" | "clients" | "planner" | "updates" | "users";
 export type Role = "client" | "team" | "admin" | "moderator";
 export type AdPlatform = "facebook" | "instagram" | "both";
 export type AdRequestPlatform = "facebook" | "instagram" | "youtube" | "google";
@@ -221,6 +221,8 @@ export interface Invoice {
   currency: string;
   status: InvoiceStatus;
   dueDate: string;
+  paidAt?: string;
+  paymentMethod?: string;
   notes?: string;
   createdAt: string;
 }
