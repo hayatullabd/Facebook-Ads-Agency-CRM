@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { AlertCircle, Eye, EyeOff, Loader2, LockKeyhole, Mail, Megaphone } from "lucide-react";
-import { login, register, saveSession, type AuthResponse } from "../authApi";
+import { isAuthResponse, login, register, saveSession, type AuthResponse } from "../authApi";
 
 type Mode = "login" | "register";
 
@@ -39,6 +39,10 @@ export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthRes
     setLoading(true);
     try {
       const session = mode === "login" ? await login({ email, password }) : await register({ agencyName, name, email, password });
+      if (!isAuthResponse(session)) {
+        setError(session.message ?? "Registration submitted for approval");
+        return;
+      }
       saveSession(session);
       onEnter(session);
     } catch (err) {

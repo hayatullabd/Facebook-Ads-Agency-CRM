@@ -29,7 +29,7 @@ export interface PendingRegistrationResponse {
 export type RegistrationResponse = AuthResponse | PendingRegistrationResponse;
 export type RegistrationMode = "create" | "join";
 
-const roles: Role[] = ["owner", "admin", "team", "client", "moderator"];
+const roles: Role[] = ["admin", "team", "client", "moderator"];
 
 const isAuthUser = (value: unknown): value is AuthUser => {
   if (!value || typeof value !== "object") return false;
