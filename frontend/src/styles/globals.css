@@ -234,12 +234,15 @@
   .crm-reference-shell .crm-page-header { @apply items-center gap-4 border-[#cfd8e3] pb-1.5; }
   .crm-reference-shell .crm-page-header-main { @apply items-center gap-2; }
   .crm-reference-shell .crm-page-header-tab { @apply rounded-sm px-3 py-1 text-[12px] font-bold shadow-[0_1px_0_rgba(15,23,42,0.08)]; }
+  .crm-reference-shell .crm-page-header-tab { background: #1e40af; color: #fff; }
   .crm-reference-shell .crm-panel { @apply rounded-sm border-[#cfd8e3] shadow-[0_1px_2px_rgba(15,23,42,0.04)]; }
   .crm-reference-shell .crm-panel-header { @apply bg-[#eef2f7] px-3 py-2 text-[12px]; }
   .crm-reference-shell .crm-toolbar { @apply gap-1.5 border-[#d4dbe4] px-2.5 py-1.5; }
   .crm-reference-shell .crm-mobile-card { @apply rounded-sm border-[#cfd8e3]; }
   .crm-reference-shell .crm-segmented-control { @apply rounded-sm border-[#d4dbe4] bg-[#eef2f7]; }
   .crm-reference-shell .crm-segmented-control button.active { @apply shadow-none; }
+  .crm-reference-shell .crm-page-title { color: #1e40af; }
+  .crm-reference-shell .crm-page-subtitle { color: #64748b; }
 }
 
 @media (max-width: 767px) {
