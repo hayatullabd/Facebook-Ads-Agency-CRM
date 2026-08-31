@@ -10,7 +10,7 @@ export function AdAccountsPage({ accounts, clients }: { accounts: FacebookAdAcco
   const assignments = useMemo(() => new Map(accounts.map((account) => [account.facebookAdAccountId, clients.filter((client) => client.facebookAdAccountIds?.includes(account.facebookAdAccountId)).map((client) => client.name)])), [accounts, clients]);
   const filtered = accounts.filter((account) => !search.trim() || [account.name, account.facebookAdAccountId, account.currency, account.timezoneName].some((value) => value?.toLowerCase().includes(search.toLowerCase())));
 
-  return <div className="crm-light-portal space-y-4 text-[#17243b]">
+  return <div className="crm-light-portal crm-design-shell space-y-4 text-[#17243b]">
     <div className="crm-page-header"><div className="crm-page-header-main"><div className="crm-page-header-tab"><h2 className="crm-page-title">Ad Accounts</h2></div><div className="crm-page-header-meta"><p className="crm-page-subtitle">Discovered Facebook account inventory and client assignments</p></div></div></div>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full max-w-sm"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" /><input className="crm-input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ad accounts" /></div><p className="text-xs font-semibold text-gray-500">{filtered.length} of {accounts.length} accounts</p></div>
     <Card className="overflow-x-auto">

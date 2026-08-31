@@ -1,0 +1,10 @@
+{
+  "description": "Manage and streamline Facebook ads agency workflows with a CRM designed to organize client data, track campaigns, and enhance team collaboration.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

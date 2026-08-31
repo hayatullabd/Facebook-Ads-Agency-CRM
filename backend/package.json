@@ -7,7 +7,8 @@
     "check": "node src/scripts/checkSyntax.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/scripts/seed.js"
+    "seed": "node src/scripts/seed.js",
+    "create:platform-admin": "node src/scripts/createPlatformAdmin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

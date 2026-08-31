@@ -118,7 +118,7 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
     } catch { /* surfaced */ }
   };
 
-  return <div className="crm-light-portal space-y-3">
+  return <div className="crm-light-portal crm-design-shell space-y-3">
     <div className="crm-page-header"><div className="crm-page-header-main"><div className="crm-page-header-tab"><h2 className="crm-page-title">Billing & finance</h2></div><div className="crm-page-header-meta"><p className="crm-page-subtitle">Invoice status and outstanding balances</p></div></div>{canManage && <Button onClick={startCreate}><Plus className="size-4"/>New invoice</Button>}</div>
     <div className="grid gap-3 sm:grid-cols-2">
       <Card className="p-3"><p className="text-[11px] uppercase text-slate-500">Total billed</p><p className="mt-1.5 break-words text-lg font-bold">{totals(invoices)}</p></Card>

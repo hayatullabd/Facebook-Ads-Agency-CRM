@@ -22,6 +22,7 @@ const primaryItems = {
 } satisfies Partial<Record<Screen, NavigationItem>>;
 
 export const NAVIGATION: Record<Role, NavigationItem[]> = {
+  owner: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.settings],
   admin: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.settings],
   team: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
   client: [primaryItems.dashboard, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
@@ -29,10 +30,11 @@ export const NAVIGATION: Record<Role, NavigationItem[]> = {
 };
 
 const ROLE_SCREENS: Record<Role, Screen[]> = {
-  admin: ["dashboard", "settings", "requests", "campaigns", "adaccounts", "billing", "payment_details", "clients", "planner", "updates", "users"],
-  team: ["dashboard", "requests", "campaigns", "billing", "payment_details", "clients", "planner", "updates", "users"],
-  client: ["dashboard", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
-  moderator: ["dashboard", "requests", "updates", "users"],
+  owner: ["dashboard", "settings", "clients", "requests", "campaigns", "adaccounts", "billing", "payment_details", "planner", "updates", "users"],
+  admin: ["dashboard", "settings", "clients", "requests", "campaigns", "adaccounts", "billing", "payment_details", "planner", "updates", "users"],
+  team: ["dashboard", "clients", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
+  client: ["dashboard", "clients", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
+  moderator: ["dashboard", "requests", "updates"],
 };
 
 const SCREEN_TITLES: Record<Screen, string> = {

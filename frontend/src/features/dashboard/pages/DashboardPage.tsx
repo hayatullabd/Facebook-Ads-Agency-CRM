@@ -37,7 +37,7 @@ export function DashboardPage({ role, clients, requests, campaigns, invoices, fa
   const panel = "border-slate-200 bg-white text-slate-900 shadow-sm";
   const itemCount = pendingRequests.length + overdueInvoices.length + staleCampaigns.length;
 
-  return <div className="space-y-3 rounded-md bg-slate-50 p-3 text-slate-900 sm:p-4">
+  return <div className="crm-light-portal crm-design-shell space-y-3 text-slate-900">
     <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
       <div><p className="text-[10px] font-semibold uppercase text-blue-700">{roleLabel}</p><h2 className="mt-0.5 text-lg font-semibold text-slate-900">Workspace overview</h2><p className="mt-0.5 text-xs text-slate-500">{roleMessage}</p></div>
       <div className="flex gap-2"><a href="/requests" className="inline-flex min-h-8 items-center gap-1.5 rounded bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">Review requests<ArrowRight className="size-3.5" /></a><a href="/campaigns" className="inline-flex min-h-8 items-center rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Campaign health</a></div>

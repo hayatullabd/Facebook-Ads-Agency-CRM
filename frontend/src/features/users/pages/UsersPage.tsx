@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Filter, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import type { Client, Role, UserAccount } from "../../../types/crm";
 import { Card } from "../../shared/Card";
+import { FeaturePanel } from "../../shared/FeaturePanel";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { Button } from "../../shared/Button";
 
@@ -42,6 +43,14 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
       && (statusFilter === "all" || (statusFilter === "active" ? user.isActive : !user.isActive))
       && (clientFilter === "all" || (clientFilter === "agency" ? !userClient : userClient?._id === clientFilter));
   }), [users, search, roleFilter, statusFilter, clientFilter]);
+  const featureItems = useMemo(() => ([
+    { key: "create", label: "Create user", description: "Add new workspace or client users from the panel", enabled: currentRole !== "moderator" },
+    { key: "edit", label: "Edit user", description: "Modify name, role, client, and active state", enabled: currentRole === "admin" || currentRole === "team" || currentRole === "client" },
+    { key: "remove", label: "Remove user", description: "Delete users according to role permissions", enabled: currentRole === "admin" || currentRole === "team" },
+    { key: "client-scope", label: "Client scope", description: "Restrict moderator access to one client only", enabled: currentRole === "client" },
+    { key: "admin-scope", label: "Admin scope", description: "Manage all workspace users including team and client roles", enabled: currentRole === "admin" },
+    { key: "audit", label: "Audit trail", description: "Track user actions through workspace logs", enabled: true },
+  ]), [currentRole]);
 
   const resetForm = () => {
     const nextRole = firstPermittedRole(currentRole);
@@ -102,8 +111,9 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   };
 
   return (
-    <div className="crm-light-portal space-y-3">
+    <div className="crm-light-portal crm-design-shell space-y-3">
       <div className="crm-page-header"><div className="crm-page-header-main"><div className="crm-page-header-tab"><h2 className="crm-page-title">{currentRole === "client" ? "Moderators" : "Users & access"}</h2></div><div className="crm-page-header-meta"><p className="crm-page-subtitle">Role-based workspace access</p></div></div>{currentRole !== "moderator" && <Button onClick={startCreate}><Plus className="size-4" />Add User</Button>}</div>
+      <FeaturePanel title="User access matrix" subtitle="Control which user operations are available from the panel for the active role" items={featureItems} />
       {error && !open && <div role="alert" className="rounded-md bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}{loadError && <div role="alert" className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-200">Could not load users: {loadError}. <button type="button" className="font-semibold underline" onClick={() => onRetry ? onRetry() : window.location.reload()}>Retry</button></div>}
       <Card>
         <div className="crm-toolbar sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(3,minmax(9rem,12rem))_auto]">

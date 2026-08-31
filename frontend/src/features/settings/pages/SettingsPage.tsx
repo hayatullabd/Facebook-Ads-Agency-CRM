@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Building2, Facebook, ScrollText, Users } from "lucide-react";
 import { apiRequest } from "../../../lib/api";
 import { formatDate } from "../../../lib/formatters";
 import type { ActivityLog, AgencyProfile, UserAccount } from "../../../types/crm";
 import { Card } from "../../shared/Card";
+import { FeaturePanel } from "../../shared/FeaturePanel";
 import { getAgency, saveAgencySettings, saveFacebookSettings } from "../settingsApi";
+import { getAccessMatrix } from "../../access/accessApi";
 
 export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: string; onWorkspaceRefresh: () => Promise<boolean> }) {
   const [tab, setTab] = useState<"General" | "API Config" | "Team" | "Audit Logs">("General");
@@ -19,15 +21,29 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
+  const [access, setAccess] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
-    Promise.all([getAgency(agencyId), apiRequest<UserAccount[]>(`/users/${agencyId}`), apiRequest<ActivityLog[]>(`/logs/${agencyId}`)])
-      .then(([profile, team, audit]) => {
+    Promise.all([getAgency(agencyId), apiRequest<UserAccount[]>(`/users/${agencyId}`), apiRequest<ActivityLog[]>(`/logs/${agencyId}`), getAccessMatrix()])
+      .then(([profile, team, audit, matrix]) => {
         setAgency(profile); setUsers(team); setLogs(audit); setName(profile.name);
+        setAccess(matrix.roles);
         setCurrency(profile.defaultCurrency); setRate(String(profile.defaultRate));
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load workspace settings"));
   }, [agencyId]);
+
+  const featureItems = useMemo(() => {
+    const roleFeatures = access.owner || [];
+    return [
+      { key: "general", label: "Workspace profile", description: "Update agency name, currency, and default exchange rate", enabled: roleFeatures.includes("settings") || roleFeatures.includes("dashboard") },
+      { key: "api", label: "Facebook API", description: "Store token and default ad account for sync jobs", enabled: roleFeatures.includes("adaccounts") },
+      { key: "team", label: "Team management", description: "Create, update, and remove workspace users", enabled: roleFeatures.includes("users") },
+      { key: "logs", label: "Audit logs", description: "Review system actions and change history", enabled: roleFeatures.includes("updates") },
+      { key: "billing", label: "Billing tools", description: "Access invoices, dues, and payment details", enabled: roleFeatures.includes("billing") },
+      { key: "campaigns", label: "Campaign operations", description: "Manage campaigns, requests, and ad accounts", enabled: roleFeatures.includes("campaigns") },
+    ];
+  }, [access]);
 
   const saveGeneral = async (event: FormEvent) => {
     event.preventDefault(); setBusy("general"); setError(""); setMessage("");
@@ -48,11 +64,12 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh }: { agencyId: strin
   };
 
   const tabs = [{ label: "General", icon: Building2 }, { label: "API Config", icon: Facebook }, { label: "Team", icon: Users }, { label: "Audit Logs", icon: ScrollText }] as const;
-  return <div className="crm-light-portal settings-light space-y-4 rounded bg-slate-50 p-3 text-slate-900 sm:p-4">
+  return <div className="crm-light-portal settings-light crm-design-shell space-y-3 text-slate-900">
     <div className="crm-page-header"><div className="crm-page-header-main"><div className="crm-page-header-tab"><h2 className="crm-page-title">Agency Profile</h2></div><div className="crm-page-header-meta"><p className="crm-page-subtitle">Workspace identity, integrations, team access, and audit history</p></div></div></div>
     {error && <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700">{error}</div>}
     {message && <div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-xs text-green-700">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-3"><Card className="p-4 sm:col-span-2"><p className="text-xs text-gray-500">Agency name</p><p className="mt-1 text-lg font-bold text-[#1e40af]">{agency?.name || "Loading..."}</p><p className="mt-2 text-xs text-gray-500">Agency ID: <span className="font-mono">{agency?._id || "—"}</span></p></Card><Card className="p-4"><p className="text-xs text-gray-500">Default currency</p><p className="mt-1 text-lg font-bold">{agency?.defaultCurrency || "—"}</p><p className="mt-2 text-xs text-gray-500">Default rate: {agency?.defaultRate ?? "—"}</p></Card></div>
+    <FeaturePanel title="Feature control panel" subtitle="Enable or review what this workspace role can access from the panel" items={featureItems} />
     <div className="flex flex-wrap gap-1 border-b border-[#1e40af]">{tabs.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => setTab(label)} className={`inline-flex items-center gap-2 rounded-t border border-b-0 px-4 py-2 text-xs font-bold ${tab === label ? "border-[#1e40af] bg-[#1e40af] text-white" : "border-gray-300 bg-gray-100 text-[#1e40af] hover:bg-gray-200"}`}><Icon className="size-3.5" />{label}</button>)}</div>
     <Card className="rounded-tl-none p-4">
       {tab === "General" && <form className="grid gap-4 sm:grid-cols-2" onSubmit={saveGeneral}><label><span className="crm-label">Agency name</span><input required className="crm-input" value={name} onChange={(event) => setName(event.target.value)} /></label><label><span className="crm-label">Default currency</span><select className="crm-input" value={currency} onChange={(event) => setCurrency(event.target.value as AgencyProfile["defaultCurrency"])}><option>USD</option><option>BDT</option><option>INR</option></select></label><label><span className="crm-label">Default rate</span><input required min="0" step="0.01" type="number" className="crm-input" value={rate} onChange={(event) => setRate(event.target.value)} /></label><div className="flex items-end"><button disabled={busy === "general"} className="rounded border border-[#1e40af] bg-[#1e40af] px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{busy === "general" ? "Saving..." : "Save profile"}</button></div></form>}
