@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    server: { proxy: { "/api": { target: deploymentEnv.API_PROXY_TARGET || "http://127.0.0.1:5001", changeOrigin: true }, "/health": { target: deploymentEnv.API_PROXY_TARGET || "http://127.0.0.1:5001", changeOrigin: true } } },
     assetsInclude: ['**/*.svg', '**/*.csv'],
     build: {
       rollupOptions: {

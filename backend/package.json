@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seed.js",
-    "create:platform-admin": "node src/scripts/createPlatformAdmin.js"
+    "create:platform-admin": "node src/scripts/createPlatformAdmin.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "migrate": "node src/scripts/migrateProduction.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -20,6 +22,14 @@
     "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "mongodb-memory-server": "^10.4.3",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.2.2"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

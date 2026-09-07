@@ -1,0 +1,43 @@
+import { writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import path from "node:path";
+import mongoose from "mongoose";
+import { createTestDatabase, root } from "./support/database.js";
+
+if (process.env.NODE_ENV === "production") throw new Error("The test server cannot run in production");
+const database = await createTestDatabase();
+process.env.NODE_ENV = "test";
+process.env.MONGODB_URI = database.uri;
+process.env.JWT_SECRET = randomBytes(32).toString("hex");
+process.env.CREDENTIAL_ENCRYPTION_KEY = randomBytes(32).toString("hex");
+process.env.CLIENT_URL = process.env.TEST_CLIENT_URL || "http://127.0.0.1:5001,http://localhost:5001";
+process.env.SERVE_FRONTEND = "true";
+process.env.RATE_LIMIT_STORE = "mongo";
+const { default: app, startServer } = await import("../src/app.js");
+const { default: Agency } = await import("../src/models/Agency.model.js");
+const { default: User } = await import("../src/models/User.model.js");
+const { default: Client } = await import("../src/models/Client.model.js");
+const { default: AdRequest } = await import("../src/models/AdRequest.model.js");
+const { stopFacebookSyncWorker } = await import("../src/services/facebookSyncJob.service.js");
+await startServer();
+const password = `Aa1!${randomBytes(16).toString("hex")}`;
+const agency = await Agency.create({ name: "Browser Test Agency", slug: "browser-test-agency", defaultCurrency: "BDT", defaultRate: 110 });
+const client = await Client.create({ agency: agency._id, name: "Browser Client", contactName: "Client Contact", email: "contact@example.test", billingRate: 110 });
+const owner = await User.create({ agency: agency._id, name: "Browser Owner", email: "browser-owner@example.test", password, role: "owner", platformRole: "admin" });
+await User.create({ agency: agency._id, client: client._id, name: "Browser Client User", email: "browser-client@example.test", password, role: "client" });
+agency.owner = owner._id; await agency.save();
+await AdRequest.create({ agency: agency._id, client: client._id, submittedBy: owner._id, requestNumber: "REQ-TEST-1", pageName: "Browser Page", platform: ["facebook"], objectiveGroup: "website", objective: "Traffic", budget: { amount: 100, type: "lifetime", currency: "USD" }, durationDays: 10, status: "Approved" });
+await writeFile(path.join(root, ".cache/e2e-session.json"), JSON.stringify({ email: owner.email, clientEmail: "browser-client@example.test", password, agency: agency.id, client: client.id }), { mode: 0o600 });
+const server = app.listen(5001, "0.0.0.0", () => console.log("Isolated browser test server ready on port 5001"));
+let stopping = false;
+async function stop() {
+  if (stopping) return; stopping = true;
+  server.closeIdleConnections();
+  await new Promise(resolve => server.close(resolve));
+  await stopFacebookSyncWorker();
+  await mongoose.disconnect();
+  await database.stop();
+  process.exit(0);
+}
+process.on("SIGTERM", () => void stop());
+process.on("SIGINT", () => void stop());

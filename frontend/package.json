@@ -1,5 +1,5 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "adflow-crm-frontend",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -7,7 +7,9 @@
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit",
     "dev": "vite",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "1.2.3",
@@ -64,18 +66,17 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "4.1.12",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "4.7.0",
+    "jsdom": "^26.1.0",
     "tailwindcss": "4.1.12",
     "typescript": "^7.0.2",
-    "vite": "^6.4.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "6.3.5"
-    }
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
   },
   "description": "",
   "main": "index.js",
@@ -85,5 +86,8 @@
   "allowScripts": {
     "@tailwindcss/oxide@4.1.12": true,
     "esbuild@0.25.12": true
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

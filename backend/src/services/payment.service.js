@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import Client from "../models/Client.model.js";
 import Invoice from "../models/Invoice.model.js";
@@ -8,7 +9,11 @@ import { ApiError } from "../utils/ApiError.js";
 const CLIENT_ROLES = ["client", "moderator"];
 const accountFields = ["name", "provider", "accountReference", "currency", "status", "notes"];
 
-const clientScope = (actor) => CLIENT_ROLES.includes(actor.role) ? actor.client : null;
+const clientScope = (actor) => {
+  if (!CLIENT_ROLES.includes(actor.role)) return null;
+  if (!actor.client) throw new ApiError(403, "A client assignment is required");
+  return actor.client;
+};
 const pickFields = (body, fields) => Object.fromEntries(
   fields.filter((field) => body[field] !== undefined).map((field) => [field, body[field]])
 );
@@ -52,6 +57,7 @@ export const createPaymentAccount = async ({ agencyId, actor, data }) => {
 
 export const updatePaymentAccount = async ({ agencyId, accountId, actor, data }) => {
   const account = await findAccount({ agencyId, accountId, actor });
+  if (data.currency && data.currency !== account.currency) throw new ApiError(409, "Account currency is immutable");
   Object.assign(account, pickFields(data, accountFields));
   await account.save();
   return account;
@@ -73,11 +79,21 @@ export const listPaymentTransactions = async ({ agencyId, actor, filters }) => {
 };
 
 export const createPaymentTransaction = async ({ agencyId, accountId, actor, data, forcedType }) => {
+  if (!/^[a-zA-Z0-9_-]{16,100}$/.test(data.idempotencyKey || "")) throw new ApiError(400, "A valid idempotencyKey is required");
+  if (!Number.isFinite(data.amount) || data.amount < 0.01 || data.amount > 1_000_000_000 || Math.abs(data.amount * 100 - Math.round(data.amount * 100)) > 0.00001) throw new ApiError(400, "Amount must use at most two decimal places");
+  const type = forcedType || data.type;
+  if (!["credit", "debit"].includes(type)) throw new ApiError(400, "Invalid transaction type");
+  const requestHash = createHash("sha256").update(JSON.stringify([type, data.amount, data.invoice || null, data.method || "manual", data.reference || "", data.description || "", data.transactionDate || null])).digest("hex");
   const session = await mongoose.startSession();
   let transaction;
   try {
     await session.withTransaction(async () => {
       const account = await findAccount({ agencyId, accountId, actor, session });
+      const existing = await PaymentTransaction.findOne({ agency: agencyId, account: account._id, idempotencyKey: data.idempotencyKey }).select("+requestHash").session(session);
+      if (existing) {
+        if (existing.requestHash !== requestHash) throw new ApiError(409, "Idempotency key was already used for a different payment");
+        transaction = existing.toObject(); delete transaction.requestHash; return;
+      }
       if (account.status !== "active") throw new ApiError(409, "Payment account is inactive");
 
       if (data.invoice) {
@@ -88,18 +104,20 @@ export const createPaymentTransaction = async ({ agencyId, accountId, actor, dat
           currency: account.currency,
         }).session(session);
         if (!invoice) throw new ApiError(400, "Invoice does not match this account's agency, client, or currency");
+        if (type !== "debit" || data.amount !== invoice.amount) throw new ApiError(400, "Invoice settlement requires a debit for the exact invoice amount");
+        const settled = await Invoice.updateOne({ _id: invoice._id, status: { $ne: "Paid" } }, { $set: { status: "Paid", paidAt: new Date(), paymentMethod: data.method || "manual" } }, { session });
+        if (!settled.modifiedCount) throw new ApiError(409, "Invoice is already paid");
       }
 
-      const type = forcedType || data.type;
       const delta = type === "credit" ? data.amount : -data.amount;
       const balanceQuery = { _id: account._id, agency: agencyId };
-      if (delta < 0) balanceQuery.balance = { $gte: data.amount };
+      balanceQuery.balance = delta < 0 ? { $gte: data.amount } : { $lte: 1_000_000_000 - data.amount };
       const updatedAccount = await PaymentAccount.findOneAndUpdate(
         balanceQuery,
-        { $inc: { balance: delta } },
+        [{ $set: { balance: { $round: [{ $add: ["$balance", delta] }, 2] } } }],
         { new: true, runValidators: true, session }
       );
-      if (!updatedAccount) throw new ApiError(409, "Insufficient account balance");
+      if (!updatedAccount) throw new ApiError(409, "Insufficient balance or account balance limit exceeded");
 
       [transaction] = await PaymentTransaction.create([{
         ...pickFields(data, ["invoice", "amount", "method", "reference", "description", "transactionDate"]),
@@ -107,11 +125,14 @@ export const createPaymentTransaction = async ({ agencyId, accountId, actor, dat
         client: account.client,
         account: account._id,
         currency: account.currency,
+        balance: updatedAccount.balance,
+        idempotencyKey: data.idempotencyKey,
+        requestHash,
         type,
         createdBy: actor._id,
       }], { session });
       transaction = transaction.toObject();
-      transaction.balance = updatedAccount.balance;
+      delete transaction.requestHash;
     });
     return transaction;
   } finally {

@@ -32,11 +32,11 @@ export function getWorkspaceRequests(agencyId: string, role: Role): WorkspaceRes
     requests.push({ key: "invoices", load: () => apiRequest<Invoice[]>(`/invoices/${agencyId}`) });
   }
 
-  if (["admin", "team", "client", "moderator"].includes(role)) {
+  if (["owner", "admin", "team", "client", "moderator"].includes(role)) {
     requests.push({ key: "campaigns", load: () => apiRequest<Campaign[]>(`/campaigns/${agencyId}`) });
   }
 
-  if (["admin", "team", "client", "moderator"].includes(role)) {
+  if (["owner", "admin", "team", "client", "moderator"].includes(role)) {
     requests.push({ key: "clients", load: () => apiRequest<Client[]>(`/clients/${agencyId}`) });
   }
 

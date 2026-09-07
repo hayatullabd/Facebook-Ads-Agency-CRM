@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  platformRole?: "user" | "admin";
 }
 
 export interface AuthResponse {
@@ -29,9 +30,9 @@ export interface PendingRegistrationResponse {
 export type RegistrationResponse = AuthResponse | PendingRegistrationResponse;
 export type RegistrationMode = "create" | "join";
 
-const roles: Role[] = ["admin", "team", "client", "moderator"];
+const roles: Role[] = ["owner", "admin", "team", "client", "moderator"];
 
-const isAuthUser = (value: unknown): value is AuthUser => {
+export const isAuthUser = (value: unknown): value is AuthUser => {
   if (!value || typeof value !== "object") return false;
   const user = value as Record<string, unknown>;
   return typeof user._id === "string"
@@ -39,6 +40,7 @@ const isAuthUser = (value: unknown): value is AuthUser => {
     && typeof user.name === "string"
     && typeof user.email === "string"
     && roles.includes(user.role as Role)
+    && (user.platformRole === undefined || user.platformRole === "user" || user.platformRole === "admin")
     && (user.client === undefined || user.client === null || typeof user.client === "string");
 };
 
@@ -59,6 +61,10 @@ export const saveSession = (session: AuthResponse) => {
   localStorage.setItem("adflow_user", JSON.stringify(session.user));
   localStorage.setItem("adflow_token", session.token);
 };
+
+export const getCurrentUser = () => apiRequest<AuthUser>("/auth/me");
+export const revokeSessions = () => apiRequest<null>("/auth/logout", { method: "POST" });
+export const changePassword = (currentPassword: string, newPassword: string) => apiRequest<null>("/auth/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) });
 
 export const clearSession = () => {
   localStorage.removeItem("adflow_token");

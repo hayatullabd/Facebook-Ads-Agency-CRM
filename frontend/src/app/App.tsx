@@ -27,6 +27,8 @@ const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").t
 const SettingsPage = lazy(() => import("../features/settings/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const PaymentDetailsPage = lazy(() => import("../features/billing/pages/PaymentDetailsPage").then((module) => ({ default: module.PaymentDetailsPage })));
 const AdAccountsPage = lazy(() => import("../features/campaigns/pages/AdAccountsPage").then((module) => ({ default: module.AdAccountsPage })));
+const ApprovalsPage = lazy(() => import("../features/users/pages/ApprovalsPage").then((module) => ({ default: module.ApprovalsPage })));
+const ProfilePage = lazy(() => import("../features/auth/pages/ProfilePage").then((module) => ({ default: module.ProfilePage })));
 const UsersPage = lazy(() => import("../features/users/pages/UsersPage").then((module) => ({ default: module.UsersPage })));
 
 class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -101,7 +103,7 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
 
 function Updates({ updates, role, currentUser, clients, requests, loadError, onRetry, onCreate, onEdit, onDelete, onMarkRead }: { updates: ClientUpdate[]; role: Role; currentUser: Pick<UserAccount, "_id">; clients: Client[]; requests: AdRequest[]; loadError?: string; onRetry?: () => void; onCreate: (payload: { client: string; adRequest: string; title: string; content: string; type?: ClientUpdate["type"] }) => Promise<void>; onEdit: (id: string, payload: { client?: string; adRequest?: string; title?: string; content?: string; type?: ClientUpdate["type"] }) => Promise<void>; onDelete: (id: string) => Promise<void>; onMarkRead: (id: string) => Promise<void> }) {
   const [search, setSearch] = useState(""); const [typeFilter, setTypeFilter] = useState("all"); const [clientFilter, setClientFilter] = useState("all"); const [readFilter, setReadFilter] = useState("all"); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<ClientUpdate | null>(null); const [client, setClient] = useState(""); const [adRequest, setAdRequest] = useState(""); const [title, setTitle] = useState(""); const [content, setContent] = useState(""); const [type, setType] = useState<ClientUpdate["type"]>("message"); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
-  const canManage = role === "admin" || role === "team"; const canRead = role === "client" || role === "moderator";
+  const canManage = ["owner", "admin"].includes(role) || role === "team"; const canRead = role === "client" || role === "moderator";
   const isRead = (item: ClientUpdate) => Boolean(item.readBy?.some((entry) => (typeof entry.user === "string" ? entry.user : entry.user._id) === currentUser._id));
   const matchingRequests = useMemo(() => requests.filter((item) => item.client?._id === client), [requests, client]);
   const filtered = useMemo(() => updates.filter((item) => (!search.trim() || [item.title, item.content, item.client?.name, item.adRequest?.requestNumber].some((value) => value?.toLowerCase().includes(search.toLowerCase()))) && (typeFilter === "all" || item.type === typeFilter) && (clientFilter === "all" || item.client?._id === clientFilter) && (readFilter === "all" || (readFilter === "read") === isRead(item))), [updates, search, typeFilter, clientFilter, readFilter, currentUser._id]);
@@ -117,7 +119,7 @@ function Updates({ updates, role, currentUser, clients, requests, loadError, onR
 
 function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<ReturnType<typeof useSessionController>["session"]>; onLogout: () => void }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { items, screen, title, setScreen } = useNavigationController(session.user.role);
+  const { items, screen, title, setScreen } = useNavigationController(session.user.role, session.user.platformRole);
   const { data, errors, loading, refresh } = useWorkspaceController(session.user.agency, session.user.role);
   const errorEntries = Object.entries(errors);
   const agency = session.user.agency;
@@ -143,7 +145,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
         </div>
       )}
       {loading && <div role="status" className="mb-4 text-sm text-slate-600">Refreshing workspace data...</div>}
-      <PageErrorBoundary>
+      <PageErrorBoundary key={screen}>
         <Suspense fallback={<PageFallback />}>
         {screen === "dashboard" && <DashboardPage role={session.user.role} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
         {screen === "clients" && <ClientsPage clients={data.clients} requests={data.requests} updates={data.updates} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
@@ -151,10 +153,12 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
         {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} requests={data.requests} role={session.user.role} onLoadInsights={(range, signal) => getCampaignRangeInsights(agency, range, signal)} onLoadAccountReport={(range, signal) => getAccountReport(agency, range, signal)} onCreateCampaign={(payload) => mutate(() => createCampaign(agency, payload))} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} onDeleteCampaign={(id) => mutate(() => deleteCampaign(agency, id))} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
         {screen === "planner" && <PlannerPage invoices={data.invoices} requests={data.requests} campaigns={data.campaigns} clients={data.clients} onNavigate={setScreen} />}
         {screen === "billing" && <BillingPage invoices={data.invoices} clients={data.clients} requests={data.requests} role={session.user.role} onCreateInvoice={(payload) => mutate(() => createInvoice(agency, payload))} onUpdateInvoice={(id, payload) => mutate(() => updateInvoice(agency, id, payload))} onDeleteInvoice={(id) => mutate(() => deleteInvoice(agency, id))} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} />}
-        {screen === "payment_details" && <PaymentDetailsPage onLoad={loadPaymentDetails} />}
+        {screen === "payment_details" && <PaymentDetailsPage onLoad={loadPaymentDetails} agencyId={agency} role={session.user.role} clients={data.clients} invoices={data.invoices} onRefresh={refresh} />}
         {screen === "adaccounts" && <AdAccountsPage accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} />}
         {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} />}
         {screen === "updates" && <Updates updates={data.updates} loadError={errors.updates} onRetry={() => void refresh()} role={session.user.role} currentUser={session.user} clients={data.clients} requests={data.requests} onCreate={(payload) => mutate(() => createUpdate(agency, payload))} onEdit={(id, payload) => mutate(() => updateClientUpdate(agency, id, payload))} onDelete={(id) => mutate(() => deleteUpdate(agency, id))} onMarkRead={(id) => mutate(() => markUpdateRead(agency, id))} />}
+        {screen === "profile" && <ProfilePage user={session.user} />}
+        {screen === "approvals" && <ApprovalsPage agencyId={agency} platformAdmin={session.user.platformRole === "admin"} clients={data.clients} onRefresh={refresh} />}
         {screen === "users" && <UsersPage users={data.users} loadError={errors.users} onRetry={refresh} clients={data.clients} currentRole={session.user.role} currentClient={session.user.client} currentUserId={session.user._id} onCreateUser={(payload) => mutate(() => createUser(agency, payload))} onUpdateUser={(id, payload) => mutate(() => updateUser(agency, id, payload))} onRemoveUser={(id) => mutate(() => removeUser(agency, id))} />}
         </Suspense>
       </PageErrorBoundary>
@@ -165,6 +169,7 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
 
 export default function App() {
   const sessionController = useSessionController();
-  if (!sessionController.session) return <AuthPage onEnter={sessionController.enter} message={sessionController.sessionMessage} />;
-  return <AuthenticatedWorkspace session={sessionController.session} onLogout={sessionController.logout} />;
+  if (sessionController.checking) return <div role="status" className="p-8 text-center">Verifying your session...</div>;
+  if (!sessionController.session) return <AuthPage onEnter={sessionController.enter} message={sessionController.sessionError || sessionController.sessionMessage} />;
+  return <>{sessionController.sessionError && <div role="alert" className="bg-red-50 p-3 text-red-800">{sessionController.sessionError}</div>}<AuthenticatedWorkspace key={`${sessionController.session.user._id}:${sessionController.session.user.role}:${sessionController.session.user.client || ""}`} session={sessionController.session} onLogout={() => void sessionController.logout()} /></>;
 }

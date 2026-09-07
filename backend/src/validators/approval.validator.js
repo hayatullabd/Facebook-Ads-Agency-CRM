@@ -7,7 +7,7 @@ export const validateDecision = validateObject({
 
 const userDecisionFields = {
   role: { type: "string", enum: [ROLES.TEAM, ROLES.CLIENT, ROLES.MODERATOR] },
-  client: { custom: (value) => value === null || (typeof value === "string" && isObjectId(value)) },
+  client: { nullable: true, custom: (value) => value === null || (typeof value === "string" && isObjectId(value)) },
 };
 
 export const validateUserDecision = validateObject({

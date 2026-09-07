@@ -12,6 +12,8 @@ import ActivityLog from "../models/ActivityLog.model.js";
 import { assertPasswordPolicy } from "../services/passwordPolicy.service.js";
 
 dotenv.config();
+if (process.env.NODE_ENV === "production") throw new Error("Seeding is forbidden in production");
+if (process.env.CONFIRM_SEED_RESET !== "DELETE_DEVELOPMENT_DATA") throw new Error("Set CONFIRM_SEED_RESET=DELETE_DEVELOPMENT_DATA to confirm the destructive development seed");
 dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const seedPasswords = {

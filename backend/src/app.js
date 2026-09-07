@@ -1,3 +1,5 @@
+import { serveFrontend } from "./middlewares/staticFrontend.middleware.js";
+import { verifyDatabaseReadiness } from "./services/databaseReadiness.service.js";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import cors from "cors";
@@ -24,7 +26,7 @@ app.disable("x-powered-by");
 if (env.trustProxy) app.set("trust proxy", 1);
 app.use((req, res, next) => {
   const suppliedId = req.get("X-Request-ID")?.trim();
-  req.id = suppliedId && suppliedId.length <= 128 ? suppliedId : randomUUID();
+  req.id = suppliedId && /^[A-Za-z0-9._-]{1,128}$/.test(suppliedId) ? suppliedId : randomUUID();
   res.set("X-Request-ID", req.id);
   next();
 });
@@ -39,7 +41,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: "1mb" }));
-app.use(morgan(env.isProduction ? "combined" : "dev"));
+morgan.token("safe-path", req => req.path);
+app.use(morgan(env.isProduction ? ":method :safe-path :status :response-time ms" : "dev"));
+app.use("/api", (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 
 app.get("/health/live", (_req, res) => {
   res.json({ success: true, status: "live" });
@@ -56,6 +60,8 @@ app.get("/health", readinessHandler);
 
 app.use("/api", apiRateLimiter, routes);
 
+if (env.serveFrontend) serveFrontend(app);
+
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
@@ -64,6 +70,7 @@ app.use(errorMiddleware);
 
 export const startServer = async () => {
   await connectDB();
+  await verifyDatabaseReadiness();
   runtimeState.markReady();
   try { startFacebookSyncWorker(); }
   catch (error) { console.error("Facebook sync worker failed to start:", error?.message || "unknown error"); }

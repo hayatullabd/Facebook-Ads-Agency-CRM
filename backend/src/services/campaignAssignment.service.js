@@ -1,3 +1,5 @@
+import PaymentAccount from "../models/PaymentAccount.model.js";
+import PaymentTransaction from "../models/PaymentTransaction.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import Campaign from "../models/Campaign.model.js";
 import Client from "../models/Client.model.js";
@@ -102,7 +104,9 @@ export async function deleteClientAndDetachFacebookCampaigns(agencyId, clientId)
     Invoice.exists({ agency: agencyId, client: clientId }),
     ClientUpdate.exists({ agency: agencyId, client: clientId }),
   ]);
-  if (users || requests || campaigns || invoices || updates) {
+  const hasAccounts = await PaymentAccount.exists({ agency: agencyId, client: clientId });
+  const hasPayments = await PaymentTransaction.exists({ agency: agencyId, client: clientId });
+  if (users || requests || campaigns || invoices || updates || hasAccounts || hasPayments) {
     throw new ApiError(409, "Client has dependent records and cannot be deleted");
   }
   await Campaign.updateMany(

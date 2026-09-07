@@ -1,4 +1,4 @@
-export type Screen = "dashboard" | "settings" | "requests" | "campaigns" | "adaccounts" | "billing" | "payment_details" | "clients" | "planner" | "updates" | "users";
+export type Screen = "dashboard" | "settings" | "requests" | "campaigns" | "adaccounts" | "billing" | "payment_details" | "clients" | "planner" | "updates" | "users" | "approvals" | "profile";
 export type Role = "owner" | "client" | "team" | "admin" | "moderator";
 export type AdPlatform = "facebook" | "instagram" | "both";
 export type AdRequestPlatform = "facebook" | "instagram" | "youtube" | "google";

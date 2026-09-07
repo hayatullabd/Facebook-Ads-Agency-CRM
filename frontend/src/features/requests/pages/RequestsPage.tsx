@@ -15,8 +15,8 @@ const platformValues: AdRequestPlatform[] = ["facebook", "instagram", "youtube",
 const platformText = (value: AdRequest["platform"]) => (Array.isArray(value) ? value : [value]).flatMap((platform) => platform === "both" ? ["facebook", "instagram"] : [platform]).map((platform) => platformLabels[platform] || platform).join(", ");
 const statuses: RequestStatus[] = ["Under Review", "Approved", "Live", "Rejected"];
 const nextStatuses = (status: RequestStatus): RequestStatus[] => status === "Under Review" ? ["Approved", "Rejected"] : status === "Approved" ? ["Live"] : [];
-const editableFor = (role: Role, status: RequestStatus) => role === "admin" || role === "team" || ["Under Review", "Rejected"].includes(status);
-const deletableFor = (role: Role, status: RequestStatus) => role === "admin" || ["Under Review", "Rejected"].includes(status);
+const editableFor = (role: Role, status: RequestStatus) => ["owner", "admin"].includes(role) || role === "team" || ["Under Review", "Rejected"].includes(status);
+const deletableFor = (role: Role, status: RequestStatus) => ["owner", "admin"].includes(role) || ["Under Review", "Rejected"].includes(status);
 const toForm = (request: AdRequest): FormState => ({ client: request.client?._id || "", pageName: request.pageName, platform: Array.isArray(request.platform) ? request.platform : request.platform === "both" ? ["facebook", "instagram"] : [request.platform], objectiveGroup: (["message", "engagement", "website", "others"] as const).includes(request.objectiveGroup as never) ? request.objectiveGroup as FormState["objectiveGroup"] : "others", objective: request.objective, amount: String(request.budget.amount), budgetType: request.budget.type, currency: request.budget.currency as FormState["currency"], durationDays: String(request.durationDays), notes: request.notes || "", contentLink: request.contentLink || "" });
 const toPayload = (form: FormState): AdRequestPayload => ({ client: form.client, pageName: form.pageName, platform: form.platform, objectiveGroup: form.objectiveGroup, objective: form.objective, budget: { amount: Number(form.amount), type: form.budgetType, currency: form.currency }, durationDays: Number(form.durationDays), notes: form.notes, contentLink: form.contentLink });
 
@@ -51,7 +51,7 @@ export function RequestsPage({ agencyId, requests, clients, role, currentClient,
   const [rejectionReason, setRejectionReason] = useState("");
   const [agencyNote, setAgencyNote] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const canReview = role === "admin" || role === "team";
+  const canReview = ["owner", "admin"].includes(role) || role === "team";
   const canBulkReview = canReview && selectedIds.length > 0;
   const isClientSide = role === "client" || role === "moderator";
   const filtered = useMemo(() => requests.filter((request) => {

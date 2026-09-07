@@ -1,3 +1,5 @@
+import { calculateInvoiceAmount } from "../services/billingCalculation.service.js";
+import PaymentTransaction from "../models/PaymentTransaction.model.js";
 import Invoice from "../models/Invoice.model.js";
 import AdRequest from "../models/AdRequest.model.js";
 import Agency from "../models/Agency.model.js";
@@ -14,6 +16,7 @@ const pickInvoiceFields = (body, fields) => Object.fromEntries(
 export const getInvoices = asyncHandler(async (req, res) => {
   const query = { agency: req.params.agencyId };
   if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;
+  await Invoice.updateMany({ ...query, status: "Unpaid", dueDate: { $lt: new Date() } }, { $set: { status: "Overdue" } });
   const invoices = await Invoice.find(query).populate("client adRequest").sort({ createdAt: -1 });
   res.json(new ApiResponse(200, invoices));
 });
@@ -26,7 +29,7 @@ export const createInvoice = asyncHandler(async (req, res) => {
       match: { agency: agencyId },
       select: "_id billingRate",
     }),
-    Agency.findById(agencyId).select("defaultRate"),
+    Agency.findById(agencyId).select("defaultRate defaultCurrency"),
   ]);
   if (!adRequest) throw new ApiError(404, "Ad request not found");
   if (!adRequest.client) throw new ApiError(404, "Client not found");
@@ -52,7 +55,7 @@ export const createInvoice = asyncHandler(async (req, res) => {
     budget: adRequest.budget.toObject(),
     durationDays: adRequest.durationDays,
     rate,
-    amount: adRequest.budget.amount * adRequest.durationDays * rate,
+    amount: calculateInvoiceAmount(adRequest.budget, adRequest.durationDays, rate),
     currency: agency.defaultCurrency,
     status: "Unpaid",
     dueDate: req.body.dueDate,
@@ -79,6 +82,7 @@ export const deleteInvoice = asyncHandler(async (req, res) => {
   const existing = await Invoice.findOne({ _id: req.params.invoiceId, agency: req.params.agencyId }).select("status");
   if (!existing) throw new ApiError(404, "Invoice not found");
   if (existing.status === "Paid") throw new ApiError(409, "Paid invoices cannot be deleted");
+  if (await PaymentTransaction.exists({ agency: req.params.agencyId, invoice: existing._id })) throw new ApiError(409, "Invoice has payment records and cannot be deleted");
   const result = await Invoice.deleteOne({ _id: existing._id, agency: req.params.agencyId, status: { $ne: "Paid" } });
   if (!result.deletedCount) throw new ApiError(409, "Paid invoices cannot be deleted");
   res.json(new ApiResponse(200, null, "Invoice deleted"));

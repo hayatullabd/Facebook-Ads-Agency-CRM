@@ -11,6 +11,7 @@ const PASSWORD_REQUIREMENTS = [
 export const getPasswordPolicyError = (password) => {
   if (typeof password !== "string") return "Password must be a string";
 
+  if (Buffer.byteLength(password, "utf8") > 72) return "Password must not exceed 72 UTF-8 bytes";
   const missing = PASSWORD_REQUIREMENTS.filter(({ test }) => !test(password)).map(({ message }) => message);
   return missing.length ? `Password must contain ${missing.join(", ")}` : null;
 };

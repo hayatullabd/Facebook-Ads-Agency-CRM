@@ -142,7 +142,7 @@ const adRequestSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 adRequestSchema.index({ agency: 1, requestNumber: 1 }, { unique: true });

@@ -7,7 +7,7 @@ import { StatusBadge } from "../../shared/StatusBadge";
 import { Button } from "../../shared/Button";
 
 const roleOptions: Role[] = ["team", "client", "moderator"];
-const firstPermittedRole = (role: Role): Role => role === "admin" ? "team" : role === "team" ? "client" : "moderator";
+const firstPermittedRole = (role: Role): Role => role === "owner" ? "admin" : role === "admin" ? "team" : role === "team" ? "client" : "moderator";
 
 export function UsersPage({ users, clients, currentRole, currentClient, currentUserId, loadError, onRetry, onCreateUser, onUpdateUser, onRemoveUser }: {
   users: UserAccount[];
@@ -35,7 +35,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
-  const allowed = useMemo(() => currentRole === "admin" ? roleOptions : currentRole === "team" ? ["client", "moderator"] as Role[] : ["moderator"] as Role[], [currentRole]);
+  const allowed = useMemo(() => currentRole === "owner" ? ["admin", ...roleOptions] : currentRole === "admin" ? roleOptions : currentRole === "team" ? ["client", "moderator"] as Role[] : ["moderator"] as Role[], [currentRole]);
   const filtered = useMemo(() => users.filter((user) => {
     const userClient = typeof user.client === "object" && user.client ? user.client : null;
     return (!search.trim() || [user.name, user.email, userClient?.name].some((value) => value?.toLowerCase().includes(search.toLowerCase())))
@@ -45,10 +45,10 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   }), [users, search, roleFilter, statusFilter, clientFilter]);
   const featureItems = useMemo(() => ([
     { key: "create", label: "Create user", description: "Add new workspace or client users from the panel", enabled: currentRole !== "moderator" },
-    { key: "edit", label: "Edit user", description: "Modify name, role, client, and active state", enabled: currentRole === "admin" || currentRole === "team" || currentRole === "client" },
-    { key: "remove", label: "Remove user", description: "Delete users according to role permissions", enabled: currentRole === "admin" || currentRole === "team" },
+    { key: "edit", label: "Edit user", description: "Modify name, role, client, and active state", enabled: ["owner", "admin"].includes(currentRole) || currentRole === "team" || currentRole === "client" },
+    { key: "remove", label: "Remove user", description: "Delete users according to role permissions", enabled: ["owner", "admin"].includes(currentRole) || currentRole === "team" },
     { key: "client-scope", label: "Client scope", description: "Restrict moderator access to one client only", enabled: currentRole === "client" },
-    { key: "admin-scope", label: "Admin scope", description: "Manage all workspace users including team and client roles", enabled: currentRole === "admin" },
+    { key: "admin-scope", label: "Admin scope", description: "Manage all workspace users including team and client roles", enabled: ["owner", "admin"].includes(currentRole) },
     { key: "audit", label: "Audit trail", description: "Track user actions through workspace logs", enabled: true },
   ]), [currentRole]);
 
@@ -82,7 +82,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
         if (!Object.keys(payload).length) { close(); return; }
         await onUpdateUser(editing._id, payload);
       } else {
-        await onCreateUser({ name, email, password, role, client: role === "team" ? undefined : client });
+        await onCreateUser({ name, email, password, role, client: ["owner", "admin", "team"].includes(role) ? undefined : client });
       }
       close();
     } catch (err) {
@@ -98,15 +98,17 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
 
   const action = (user: UserAccount) => {
     const userClientId = typeof user.client === "object" && user.client ? user.client._id : user.client;
-    const canManageTarget = currentRole === "admin"
-      ? user.role !== "admin" || user._id === currentUserId
+    const canManageTarget = currentRole === "owner"
+      ? user.role !== "owner" || user._id === currentUserId
+      : currentRole === "admin"
+      ? ["team", "client", "moderator"].includes(user.role) || user._id === currentUserId
       : currentRole === "team"
         ? ["client", "moderator"].includes(user.role)
         : currentRole === "client"
           ? user.role === "moderator" && userClientId === currentClient
           : false;
     const canEdit = canManageTarget;
-    const canRemove = canManageTarget && user.role !== "admin" && user._id !== currentUserId;
+    const canRemove = canManageTarget && user.role !== "owner" && user._id !== currentUserId;
     return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button type="button" className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button type="button" className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
   };
 
@@ -118,7 +120,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
       <Card>
         <div className="crm-toolbar sm:grid-cols-2 xl:grid-cols-[minmax(16rem,1fr)_repeat(3,minmax(9rem,12rem))_auto]">
           <div className="relative sm:col-span-2 xl:col-span-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-600" /><input aria-label="Search users" className="crm-input pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search users..." /></div>
-          <select aria-label="Filter users by role" className="crm-input" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option value="all">All roles</option>{(["admin", "team", "client", "moderator"] as Role[]).map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          <select aria-label="Filter users by role" className="crm-input" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}><option value="all">All roles</option>{(["owner", "admin", "team", "client", "moderator"] as Role[]).map((item) => <option key={item} value={item}>{item}</option>)}</select>
           <select aria-label="Filter users by status" className="crm-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="disabled">Disabled</option></select>
           <select aria-label="Filter users by client" className="crm-input" value={clientFilter} onChange={(event) => setClientFilter(event.target.value)}><option value="all">All clients</option><option value="agency">Agency</option>{clients.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select>
           <span className="inline-flex min-h-10 items-center gap-1.5 text-xs text-slate-500"><Filter className="size-4" />{filtered.length} records</span>

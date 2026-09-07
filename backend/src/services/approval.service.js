@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Agency from "../models/Agency.model.js";
 import User from "../models/User.model.js";
 import { ROLES, USER_STATUSES, WORKSPACE_STATUSES } from "../constants/roles.js";
@@ -10,17 +11,18 @@ export const listPendingWorkspaces = () => Agency.find({ status: WORKSPACE_STATU
 
 export const decideWorkspace = async (agencyId, decision) => {
   if (!["approve", "reject"].includes(decision)) throw new ApiError(400, "Invalid approval decision");
-  const agency = await Agency.findById(agencyId);
-  if (!agency) throw new ApiError(404, "Workspace not found");
-  if (agency.status !== WORKSPACE_STATUSES.PENDING) throw new ApiError(409, "Workspace is not pending approval");
-  const approved = decision === "approve";
-  agency.status = approved ? WORKSPACE_STATUSES.ACTIVE : WORKSPACE_STATUSES.REJECTED;
-  await agency.save();
-  await User.updateOne(
-    { _id: agency.owner, agency: agency._id },
-    { $set: { status: approved ? USER_STATUSES.ACTIVE : USER_STATUSES.REJECTED, isActive: approved } }
-  );
-  return agency.populate("owner", "name email role platformRole status isActive");
+  return mongoose.connection.transaction(async session => {
+    const agency = await Agency.findById(agencyId).session(session);
+    if (!agency) throw new ApiError(404, "Workspace not found");
+    if (agency.status !== WORKSPACE_STATUSES.PENDING) throw new ApiError(409, "Workspace is not pending approval");
+    const approved = decision === "approve";
+    agency.status = approved ? WORKSPACE_STATUSES.ACTIVE : WORKSPACE_STATUSES.REJECTED;
+    await agency.save({ session });
+    const result = await User.updateOne({ _id: agency.owner, agency: agency._id, role: ROLES.OWNER },
+      { $set: { status: approved ? USER_STATUSES.ACTIVE : USER_STATUSES.REJECTED, isActive: approved }, $inc: { tokenVersion: 1 } }, { session });
+    if (!result.matchedCount) throw new ApiError(409, "Workspace owner is missing");
+    return agency.populate("owner", "name email role platformRole status isActive");
+  });
 };
 
 export const listPendingUsers = (agencyId) => User.find({ agency: agencyId, status: USER_STATUSES.PENDING })

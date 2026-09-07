@@ -8,9 +8,9 @@ import User from "../models/User.model.js";
 import { getPasswordPolicyError } from "./passwordPolicy.service.js";
 
 const signToken = (user) => jwt.sign(
-  { id: user._id, role: user.role, agency: user.agency, client: user.client },
+  { id: user._id, version: user.tokenVersion || 0 },
   env.jwtSecret,
-  { expiresIn: "7d" }
+  { expiresIn: "8h", algorithm: "HS256", issuer: "adflow", audience: "adflow-web" }
 );
 
 export const registerAccount = async ({ agencyName, name, email, password, mode = "create" }) => {
@@ -88,7 +88,7 @@ export const registerAccount = async ({ agencyName, name, email, password, mode 
 
 export const loginAccount = async ({ email, password }) => {
   const normalizedEmail = email.trim().toLowerCase();
-  const user = await User.findOne({ email: normalizedEmail }).select("+password");
+  const user = await User.findOne({ email: normalizedEmail }).select("+password +tokenVersion");
   if (!user || !(await user.comparePassword(password))) return null;
   if (user.status === USER_STATUSES.PENDING) throw new ApiError(403, "Account is pending approval");
   if (user.status === USER_STATUSES.REJECTED) throw new ApiError(403, "Account registration was rejected");

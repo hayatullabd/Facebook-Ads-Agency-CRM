@@ -1,10 +1,12 @@
 import { isObjectId, validateObject } from "./common.validator.js";
 
+const money = value => Number.isFinite(value) && value >= 0 && value <= 1_000_000_000 && Math.abs(value * 100 - Math.round(value * 100)) < 0.00001;
 const validDate = (value) => !Number.isNaN(Date.parse(value));
 const accountReference = { type: "string", trim: true, maxLength: 160 };
 const transactionFields = {
+  idempotencyKey: { required: true, type: "string", custom: value => /^[a-zA-Z0-9_-]{16,100}$/.test(value) },
   invoice: { type: "string", custom: isObjectId },
-  amount: { type: "number", required: true, min: 0.01 },
+  amount: { type: "number", required: true, min: 0.01, custom: money },
   method: { type: "string", enum: ["cash", "bank", "bkash", "nagad", "stripe", "manual"] },
   reference: accountReference,
   description: { type: "string", trim: true, maxLength: 1000 },
@@ -17,7 +19,7 @@ export const validatePaymentAccountCreate = validateObject({
   provider: { type: "string", trim: true, maxLength: 50 },
   accountReference,
   currency: { type: "string", enum: ["BDT", "USD", "INR"] },
-  openingBalance: { type: "number", min: 0 },
+  openingBalance: { type: "number", min: 0, custom: money },
   status: { type: "string", enum: ["active", "inactive"] },
   notes: { type: "string", maxLength: 1000 },
 }, "body", true);

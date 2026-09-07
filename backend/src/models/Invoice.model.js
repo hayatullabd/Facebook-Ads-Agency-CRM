@@ -101,6 +101,7 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+invoiceSchema.index({ agency: 1, adRequest: 1 }, { unique: true, name: "one_invoice_per_request" });
 invoiceSchema.index({ agency: 1, invoiceNumber: 1 }, { unique: true });
 invoiceSchema.index({ agency: 1, status: 1, dueDate: 1 });
 

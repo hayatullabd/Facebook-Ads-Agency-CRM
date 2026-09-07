@@ -9,6 +9,7 @@ export const idParams = (name) => ({ [name]: objectIdRule });
 
 export const validateObject = (rules, source = "body", strict = false) => (req, _res, next) => {
   const values = req[source] || {};
+  if (typeof values !== "object" || Array.isArray(values)) return next(new ApiError(400, `${source} must be an object`));
   if (strict) {
     const unknownField = Object.keys(values).find((field) => !Object.hasOwn(rules, field));
     if (unknownField) return next(new ApiError(400, `${unknownField} is not allowed`));
@@ -20,6 +21,7 @@ export const validateObject = (rules, source = "body", strict = false) => (req, 
     if (required && (value === undefined || value === null || value === "")) {
       return next(new ApiError(400, `${field} is required`));
     }
+    if (value === null && !rule.nullable) return next(new ApiError(400, `${field} cannot be null`));
     if (value !== undefined && value !== null && rule.type && typeof value !== rule.type) {
       return next(new ApiError(400, `${field} must be a ${rule.type}`));
     }
@@ -31,6 +33,7 @@ export const validateObject = (rules, source = "body", strict = false) => (req, 
       if (rule.maxLength && normalizedValue.length > rule.maxLength) return next(new ApiError(400, `${field} must be at most ${rule.maxLength} characters`));
     }
     if (typeof value === "number") {
+      if (!Number.isFinite(value)) return next(new ApiError(400, `${field} must be finite`));
       if (rule.min !== undefined && value < rule.min) return next(new ApiError(400, `${field} must be at least ${rule.min}`));
       if (rule.max !== undefined && value > rule.max) return next(new ApiError(400, `${field} must be at most ${rule.max}`));
     }

@@ -7,6 +7,9 @@ const paymentTransactionSchema = new mongoose.Schema({
   invoice: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice", default: null, index: true },
   type: { type: String, enum: ["credit", "debit"], required: true },
   amount: { type: Number, required: true, min: 0.01 },
+  balance: { type: Number, min: 0 },
+  idempotencyKey: { type: String },
+  requestHash: { type: String, select: false },
   currency: { type: String, enum: ["BDT", "USD", "INR"], required: true },
   method: { type: String, enum: ["cash", "bank", "bkash", "nagad", "stripe", "manual"], default: "manual" },
   reference: { type: String, trim: true, default: "", maxlength: 160 },
@@ -16,4 +19,5 @@ const paymentTransactionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 paymentTransactionSchema.index({ agency: 1, account: 1, transactionDate: -1 });
+paymentTransactionSchema.index({ agency: 1, account: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: "string" } } });
 export default mongoose.model("PaymentTransaction", paymentTransactionSchema);

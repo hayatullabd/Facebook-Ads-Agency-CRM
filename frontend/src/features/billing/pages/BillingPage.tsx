@@ -41,7 +41,7 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
   const [invoiceStatus, setInvoiceStatus] = useState<Exclude<InvoiceStatus, "Paid">>("Unpaid");
   const [notes, setNotes] = useState("");
 
-  const canManage = role === "admin" || role === "team";
+  const canManage = ["owner", "admin"].includes(role) || role === "team";
   const matchingRequests = useMemo(
     () => requests.filter((item) => item.client?._id === client && ["Approved", "Live"].includes(item.status)),
     [requests, client],
@@ -49,7 +49,7 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
   const selectedRequest = useMemo(() => matchingRequests.find((item) => item._id === adRequest), [matchingRequests, adRequest]);
   const selectedClient = useMemo(() => clients.find((item) => item._id === client), [clients, client]);
   const calculatedAmount = selectedRequest && selectedClient
-    ? selectedRequest.budget.amount * selectedRequest.durationDays * selectedClient.billingRate
+    ? Math.round(selectedRequest.budget.amount * (selectedRequest.budget.type === "daily" ? selectedRequest.durationDays : 1) * selectedClient.billingRate * 100) / 100
     : 0;
   const currencies = useMemo(() => [...new Set(invoices.map((item) => item.currency))].sort(), [invoices]);
   const filtered = useMemo(
@@ -106,7 +106,7 @@ export function BillingPage({ invoices, clients, requests, role, onCreateInvoice
       if (editing) {
         await run("form", () => onUpdateInvoice(editing._id, { status: invoiceStatus, dueDate, notes }), "Could not update invoice");
       } else {
-        await run("form", () => onCreateInvoice({ client, adRequest, dueDate }), "Could not create invoice");
+        await run("form", () => onCreateInvoice({ client, adRequest, dueDate, notes }), "Could not create invoice");
       }
       close();
     } catch { /* surfaced */ }

@@ -1,13 +1,11 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import dns from "node:dns";
 import Agency from "../models/Agency.model.js";
 import User from "../models/User.model.js";
 import { PLATFORM_ROLES, ROLES, USER_STATUSES, WORKSPACE_STATUSES } from "../constants/roles.js";
 import { assertPasswordPolicy } from "../services/passwordPolicy.service.js";
 
 dotenv.config();
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const email = process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase();
 const name = process.env.PLATFORM_ADMIN_NAME?.trim() || "SaaS Owner";

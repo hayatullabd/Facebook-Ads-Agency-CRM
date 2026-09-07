@@ -18,6 +18,8 @@ const passwordPolicyError = (password: string) => {
 export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthResponse) => void; message?: string }) {
   const [mode, setMode] = useState<Mode>("login");
   const [agencyName, setAgencyName] = useState("");
+  const [registrationMode, setRegistrationMode] = useState<"create" | "join">("create");
+  const [success, setSuccess] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +29,7 @@ export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthRes
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    setError("");
+    setError(""); setSuccess("");
     if (mode === "register") {
       const validationError = passwordPolicyError(password);
       if (validationError) {
@@ -38,9 +40,10 @@ export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthRes
 
     setLoading(true);
     try {
-      const session = mode === "login" ? await login({ email, password }) : await register({ agencyName, name, email, password });
+      const session = mode === "login" ? await login({ email, password }) : await register({ agencyName, name, email, password, mode: registrationMode });
       if (!isAuthResponse(session)) {
-        setError(session.message ?? "Registration submitted for approval");
+        setSuccess("Registration submitted. An administrator must approve your account before you can sign in.");
+        setPassword(""); setMode("login");
         return;
       }
       saveSession(session);
@@ -64,7 +67,9 @@ export function AuthPage({ onEnter, message = "" }: { onEnter: (session: AuthRes
             {(["login", "register"] as Mode[]).map((item) => <button key={item} type="button" onClick={() => { setMode(item); setError(""); setPassword(""); }} className={`py-2.5 text-xs font-semibold capitalize transition ${mode === item ? "active border-b-2 border-[#1e40af] bg-slate-50 text-[#1e40af]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"}`}>{item === "login" ? "Sign In" : "Sign Up"}</button>)}
           </div>
           <form onSubmit={handleSubmit} className="space-y-3.5 p-4 sm:p-5">
-            <div><h2 className="text-base font-semibold text-slate-900">{mode === "login" ? "Welcome back" : "Create your agency"}</h2><p className="mt-0.5 text-xs text-slate-500">{mode === "login" ? "Enter your credentials to continue." : "Set up the admin account for your workspace."}</p></div>
+            <div><h2 className="text-base font-semibold text-slate-900">{mode === "login" ? "Welcome back" : "Create your agency"}</h2><p className="mt-0.5 text-xs text-slate-500">{mode === "login" ? "Enter your credentials to continue." : "Create or join a workspace, subject to approval."}</p></div>
+            {success && <div role="status" className="rounded-md bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+            {mode === "register" && <label className="block text-sm">Registration type<select className="crm-input" value={registrationMode} onChange={(event) => setRegistrationMode(event.target.value as "create" | "join")}><option value="create">Create a new workspace</option><option value="join">Join an existing workspace</option></select></label>}
             {message && <div role="status" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{message}</div>}
             {error && <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"><AlertCircle className="mt-0.5 size-4 shrink-0" />{error}</div>}
             {mode === "register" && <><div><label className="crm-label" htmlFor="agency-name">Agency name</label><input id="agency-name" required value={agencyName} onChange={(e) => setAgencyName(e.target.value)} className="crm-input" autoComplete="organization" /></div><div><label className="crm-label" htmlFor="full-name">Full name</label><input id="full-name" required value={name} onChange={(e) => setName(e.target.value)} className="crm-input" autoComplete="name" /></div></>}

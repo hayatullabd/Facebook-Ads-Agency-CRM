@@ -1,0 +1,36 @@
+name: Production checks
+on:
+  push:
+    branches: [main, genspark_ai_developer]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MONGOMS_DISABLE_POSTINSTALL: '1'
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix frontend
+      - run: npm run check --prefix backend
+      - run: npm test --prefix backend
+      - run: npm test --prefix frontend
+      - run: npm run build --prefix frontend
+      - run: npm audit --prefix backend --omit=dev --audit-level=moderate
+      - run: npm audit --prefix frontend --omit=dev --audit-level=moderate
+      - run: npx --prefix frontend playwright install --with-deps chromium
+      - run: npm run test:e2e --prefix frontend
+      - name: Validate production container
+        run: docker build -t adflow-crm:test .

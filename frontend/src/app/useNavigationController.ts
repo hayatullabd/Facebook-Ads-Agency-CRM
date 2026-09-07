@@ -38,6 +38,8 @@ const ROLE_SCREENS: Record<Role, Screen[]> = {
 };
 
 const SCREEN_TITLES: Record<Screen, string> = {
+  approvals: "Approvals",
+  profile: "My account",
   dashboard: "Dashboard",
   settings: "System Profile",
   requests: "Ad Requests",
@@ -51,16 +53,21 @@ const SCREEN_TITLES: Record<Screen, string> = {
   users: "Users",
 };
 
-export function useNavigationController(role: Role) {
+export function useNavigationController(role: Role, platformRole?: string) {
   const location = useLocation();
   const navigate = useNavigate();
-  const items = NAVIGATION[role];
+  const allowedScreens = [...ROLE_SCREENS[role], "profile" as Screen];
+  if (["owner", "admin"].includes(role) || platformRole === "admin") allowedScreens.push("approvals");
+  const items: NavigationItem[] = [...NAVIGATION[role]];
+  for (const id of ["planner", "updates", "users", "approvals", "profile"] as Screen[]) {
+    if (allowedScreens.includes(id)) items.push({ id, label: SCREEN_TITLES[id], icon: id === "profile" ? Settings : id === "users" ? Users : FileText });
+  }
   const requested = location.pathname.split("/").filter(Boolean)[0] as Screen | undefined;
-  const screen = requested && ROLE_SCREENS[role].includes(requested) ? requested : "dashboard";
+  const screen = requested && allowedScreens.includes(requested) ? requested : "dashboard";
 
   useEffect(() => {
-    if (!requested || !ROLE_SCREENS[role].includes(requested)) navigate(`/${screen}`, { replace: true });
-  }, [navigate, requested, role, screen]);
+    if (!requested || !allowedScreens.includes(requested)) navigate(`/${screen}`, { replace: true });
+  }, [navigate, requested, role, platformRole, screen]);
 
   const title = useMemo(() => SCREEN_TITLES[screen], [screen]);
   return { items, screen, title, setScreen: (next: Screen) => navigate(`/${next}`) };

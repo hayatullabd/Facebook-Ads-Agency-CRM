@@ -30,7 +30,7 @@ export const createManagedUser = async ({ agencyId, actor, name, email, password
 };
 
 export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => {
-  const target = await User.findOne({ _id: userId, agency: agencyId });
+  const target = await User.findOne({ _id: userId, agency: agencyId }).select("+tokenVersion");
   if (!target) throw new ApiError(404, "User not found");
 
   const isSelf = normalizeId(actor._id) === normalizeId(target._id);
@@ -63,6 +63,11 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
     const duplicate = await User.exists({ email: updates.email, _id: { $ne: target._id } });
     if (duplicate) throw new ApiError(409, "An account with this email already exists");
   }
+  if (target.status === "pending" || target.status === "rejected") throw new ApiError(409, "Use the approval queue to review this account");
+  if (roleOrClientChanged || fields.isActive !== undefined) {
+    target.tokenVersion = (target.tokenVersion || 0) + 1;
+  }
+  if (fields.isActive !== undefined) updates.status = fields.isActive ? "active" : "suspended";
   Object.assign(target, updates);
   try {
     await target.save();
@@ -74,7 +79,7 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
 };
 
 export const removeManagedUser = async ({ agencyId, actor, userId }) => {
-  const target = await User.findOne({ _id: userId, agency: agencyId });
+  const target = await User.findOne({ _id: userId, agency: agencyId }).select("+tokenVersion");
   if (!target) throw new ApiError(404, "User not found");
   if (target.role === "owner" || !canManageRole(actor, target.role, target.client)) throw new ApiError(403, "You do not have permission to remove this user");
   if (target.role === "admin") {

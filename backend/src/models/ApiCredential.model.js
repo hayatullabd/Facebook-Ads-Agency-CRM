@@ -1,3 +1,4 @@
+import { encryptCredential, decryptCredential } from "../services/credentialEncryption.service.js";
 import mongoose from "mongoose";
 
 const adAccountSnapshotSchema = new mongoose.Schema(
@@ -21,7 +22,7 @@ const apiCredentialSchema = new mongoose.Schema(
   {
     agency: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", required: true, unique: true, index: true },
     provider: { type: String, enum: ["facebook"], default: "facebook" },
-    accessToken: { type: String, default: "", select: false },
+    accessToken: { type: String, default: "", select: false, set: encryptCredential, get: decryptCredential },
     defaultAdAccountId: { type: String, trim: true, default: "" },
     adAccounts: { type: [adAccountSnapshotSchema], default: [] },
     permissions: [{ type: String, trim: true }],

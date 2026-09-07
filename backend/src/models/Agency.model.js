@@ -49,7 +49,7 @@ const agencySchema = new mongoose.Schema(
       index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 export default mongoose.model("Agency", agencySchema);

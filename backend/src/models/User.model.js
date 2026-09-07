@@ -61,12 +61,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    tokenVersion: { type: Number, default: 0, select: false },
     lastLoginAt: {
       type: Date,
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 userSchema.index({ email: 1 }, { unique: true });
@@ -75,6 +76,10 @@ userSchema.pre("save", async function hashPassword(next) {
   if (!this.isModified("password")) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
+  if (!this.isNew) {
+    const current = this.isSelected("tokenVersion") ? this : await this.constructor.findById(this._id).select("+tokenVersion");
+    this.tokenVersion = (current?.tokenVersion || 0) + 1;
+  }
   next();
 });
 

@@ -8,7 +8,7 @@ const jwtSecret = process.env.JWT_SECRET || (isProduction ? "" : "development-on
 const mongodbUri = process.env.MONGODB_URI;
 const configuredClientUrl = process.env.CLIENT_URL;
 const clientUrl = configuredClientUrl || (isProduction ? "" : "http://localhost:5173");
-const placeholderSecretPattern = /^(change|replace|your|development)[-_ ]?(this[-_ ]?)?(only[-_ ]?)?(secret|jwt)/i;
+const placeholderSecretPattern = /change|replace|your|development|example/i;
 
 function parseBoundedInteger(name, fallback, minimum, maximum) {
   const raw = process.env[name];
@@ -29,7 +29,7 @@ function parseClientOrigins(value) {
       throw new Error("CLIENT_URL must contain valid http/https origins");
     }
 
-    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash || (parsed.pathname && parsed.pathname !== "/")) {
+    if ((isProduction && parsed.protocol !== "https:") || !["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash || (parsed.pathname && parsed.pathname !== "/")) {
       throw new Error("CLIENT_URL entries must be http/https origins without paths, credentials, query strings, or fragments");
     }
   }
@@ -37,13 +37,19 @@ function parseClientOrigins(value) {
 }
 
 if (!mongodbUri) throw new Error("MONGODB_URI is required");
-if (!jwtSecret || (isProduction && (jwtSecret.length < 32 || placeholderSecretPattern.test(jwtSecret)))) {
+if (!jwtSecret || (isProduction && (jwtSecret.length < 32 || new Set(jwtSecret).size < 10 || placeholderSecretPattern.test(jwtSecret)))) {
   throw new Error("JWT_SECRET must be a non-placeholder secret of at least 32 characters in production");
 }
 if (isProduction && !configuredClientUrl) throw new Error("CLIENT_URL is required in production");
 
+if (process.env.RATE_LIMIT_STORE && !["mongo", "memory"].includes(process.env.RATE_LIMIT_STORE)) throw new Error("RATE_LIMIT_STORE must be mongo or memory");
+if (isProduction && process.env.RATE_LIMIT_STORE === "memory") throw new Error("Production requires the shared mongo rate limit store");
+
 const clientUrls = parseClientOrigins(clientUrl);
 if (isProduction && clientUrls.length === 0) throw new Error("CLIENT_URL must include at least one origin in production");
+
+const encryptionKey = process.env.CREDENTIAL_ENCRYPTION_KEY || "";
+if ((isProduction || encryptionKey) && (!/^[a-fA-F0-9]{64}$/.test(encryptionKey) || new Set(encryptionKey).size < 8)) throw new Error("CREDENTIAL_ENCRYPTION_KEY must be a random 32-byte hex key");
 
 const facebookGraphVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim() || "v20.0";
 if (!/^v\d+\.\d+$/.test(facebookGraphVersion)) throw new Error("FACEBOOK_GRAPH_VERSION must use the format v20.0");
@@ -74,11 +80,14 @@ const facebookUsdRates = parseFacebookUsdRates(process.env.FACEBOOK_USD_RATES);
 export const env = {
   nodeEnv,
   isProduction,
-  port: parseBoundedInteger("PORT", 5000, 1, 65535),
+  port: parseBoundedInteger("PORT", 5001, 1, 65535),
   clientUrl,
   clientUrls,
   jwtSecret,
   mongodbUri,
+  encryptionKey,
+  serveFrontend: process.env.SERVE_FRONTEND === "true",
+  rateLimitStore: process.env.RATE_LIMIT_STORE || (isProduction ? "mongo" : "memory"),
   trustProxy: process.env.TRUST_PROXY === "true" || process.env.TRUST_PROXY === "1",
   facebookRequestTimeoutMs: parseBoundedInteger("FACEBOOK_REQUEST_TIMEOUT_MS", 15000, 1000, 120000),
   facebookGraphVersion,

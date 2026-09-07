@@ -1,3 +1,4 @@
+import User from "../models/User.model.js";
 import Client from "../models/Client.model.js";
 import { deleteClientAndDetachFacebookCampaigns, setClientAdAccountAssignment } from "../services/campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -20,12 +21,19 @@ export const getClients = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, clients));
 });
 
+const validateTeam = async (req) => {
+  const ids = [...new Set(req.body.assignedTeamMembers || [])];
+  if (ids.length && await User.countDocuments({ _id: { $in: ids }, agency: req.params.agencyId, role: { $in: ["owner", "admin", "team"] }, isActive: true }) !== ids.length) throw new ApiError(400, "Assigned team members must belong to this agency");
+};
+
 export const createClient = asyncHandler(async (req, res) => {
+  await validateTeam(req);
   const client = await Client.create({ ...pickClientFields(req.body), agency: req.params.agencyId });
   res.status(201).json(new ApiResponse(201, client, "Client created"));
 });
 
 export const updateClient = asyncHandler(async (req, res) => {
+  await validateTeam(req);
   const client = await Client.findOneAndUpdate(
     { _id: req.params.clientId, agency: req.params.agencyId },
     pickClientFields(req.body),
