@@ -39,9 +39,19 @@ export function Topbar({ title, role, userName, userId, onMenu, onLogout, onNavi
     window.addEventListener("keydown", closeMenus);
     return () => window.removeEventListener("keydown", closeMenus);
   }, []);
+  useEffect(() => {
+    const openCommandSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", openCommandSearch);
+    return () => window.removeEventListener("keydown", openCommandSearch);
+  }, []);
   const go = (screen: Screen) => { onNavigate(screen); setSearchOpen(false); setNotificationsOpen(false); setQuery(""); };
 
-  return <header className="crm-topbar sticky top-0 z-30 flex min-h-14 flex-col gap-2 border-b border-[#d1d5db] bg-white px-3 py-2 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
+  return <header className="crm-topbar sticky top-0 z-30 flex min-h-14 flex-col gap-2 border-b border-[#d6deea] bg-white/90 px-3 py-2 backdrop-blur sm:px-4 lg:flex-row lg:items-center lg:justify-between">
     <div className="flex min-w-0 items-center gap-2.5">
       <button className="crm-icon-button lg:hidden" onClick={onMenu} aria-label="Open navigation" title="Open navigation"><Menu className="size-4" /></button>
       <div className="min-w-0">

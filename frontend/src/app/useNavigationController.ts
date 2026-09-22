@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
-import { BriefcaseBusiness, CreditCard, FileText, LayoutDashboard, Megaphone, ReceiptText, Settings, Users } from "lucide-react";
+import { BellRing, BriefcaseBusiness, CalendarClock, CreditCard, FileText, LayoutDashboard, Megaphone, ReceiptText, Settings, UserCog, Users } from "lucide-react";
 import type { Role, Screen } from "../types/crm";
 
 export interface NavigationItem {
@@ -19,21 +19,24 @@ const primaryItems = {
   adaccounts: { id: "adaccounts", label: "Ad Accounts", icon: BriefcaseBusiness },
   billing: { id: "billing", label: "Payment Dues", icon: CreditCard },
   payment_details: { id: "payment_details", label: "Payment Details", icon: ReceiptText },
+  planner: { id: "planner", label: "Planner", icon: CalendarClock },
+  updates: { id: "updates", label: "Updates", icon: BellRing },
+  users: { id: "users", label: "Users", icon: UserCog },
 } satisfies Partial<Record<Screen, NavigationItem>>;
 
 export const NAVIGATION: Record<Role, NavigationItem[]> = {
-  owner: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.settings],
-  admin: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.settings],
-  team: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
-  client: [primaryItems.dashboard, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details],
-  moderator: [primaryItems.dashboard, primaryItems.requests],
+  owner: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.planner, primaryItems.updates, primaryItems.users, primaryItems.settings],
+  admin: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.adaccounts, primaryItems.billing, primaryItems.payment_details, primaryItems.planner, primaryItems.updates, primaryItems.users, primaryItems.settings],
+  team: [primaryItems.dashboard, primaryItems.clients, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details, primaryItems.planner, primaryItems.updates, primaryItems.users],
+  client: [primaryItems.dashboard, primaryItems.requests, primaryItems.campaigns, primaryItems.billing, primaryItems.payment_details, primaryItems.updates],
+  moderator: [primaryItems.dashboard, primaryItems.requests, primaryItems.updates],
 };
 
 const ROLE_SCREENS: Record<Role, Screen[]> = {
   owner: ["dashboard", "settings", "clients", "requests", "campaigns", "adaccounts", "billing", "payment_details", "planner", "updates", "users"],
   admin: ["dashboard", "settings", "clients", "requests", "campaigns", "adaccounts", "billing", "payment_details", "planner", "updates", "users"],
   team: ["dashboard", "clients", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
-  client: ["dashboard", "clients", "requests", "campaigns", "billing", "payment_details", "planner", "updates", "users"],
+  client: ["dashboard", "requests", "campaigns", "billing", "payment_details", "updates"],
   moderator: ["dashboard", "requests", "updates"],
 };
 

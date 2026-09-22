@@ -1,7 +1,8 @@
 import { ArrowRight, ArrowUpRight, CheckCircle2, CircleDollarSign, Clock3, FileText, Megaphone, RefreshCw, Users, WalletCards } from "lucide-react";
+import { Link } from "react-router";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { AdRequest, Campaign, Client, FacebookOverview, Invoice, Role } from "../../../types/crm";
 import { formatDate, formatMoney } from "../../../lib/formatters";
+import type { AdRequest, Campaign, Client, FacebookOverview, Invoice, Role } from "../../../types/crm";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
 
@@ -37,24 +38,217 @@ export function DashboardPage({ role, clients, requests, campaigns, invoices, fa
   const panel = "border-slate-200 bg-white text-slate-900 shadow-sm";
   const itemCount = pendingRequests.length + overdueInvoices.length + staleCampaigns.length;
 
-  return <div className="crm-light-portal crm-design-shell space-y-3 text-slate-900">
-    <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><p className="text-[10px] font-semibold uppercase text-blue-700">{roleLabel}</p><h2 className="mt-0.5 text-lg font-semibold text-slate-900">Workspace overview</h2><p className="mt-0.5 text-xs text-slate-500">{roleMessage}</p></div>
-      <div className="flex gap-2"><a href="/requests" className="inline-flex min-h-8 items-center gap-1.5 rounded bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">Review requests<ArrowRight className="size-3.5" /></a><a href="/campaigns" className="inline-flex min-h-8 items-center rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Campaign health</a></div>
-    </header>
+  return (
+    <div className="crm-light-portal crm-design-shell space-y-3 text-slate-900">
+      <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase text-blue-700">{roleLabel}</p>
+          <h2 className="mt-0.5 text-lg font-semibold text-slate-900">Workspace overview</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{roleMessage}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/requests" className="inline-flex min-h-8 items-center gap-1.5 rounded bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">
+            Review requests
+            <ArrowRight className="size-3.5" />
+          </Link>
+          <Link to="/campaigns" className="inline-flex min-h-8 items-center rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+            Campaign health
+          </Link>
+        </div>
+      </header>
 
-    <section className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">{kpis.map(({ label, value, meta, icon: Icon, tone, href }) => <a href={href} key={label} className="group"><Card className={`h-full p-3 transition group-hover:border-blue-300 group-hover:shadow-md ${panel}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[10px] font-semibold uppercase text-slate-500">{label}</p><p className="mt-1 break-words text-xl font-semibold leading-tight text-slate-900">{value}</p></div><div className={`shrink-0 rounded border p-1.5 ${tone}`}><Icon className="size-4" /></div></div><p className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500"><span>{meta}</span><ArrowUpRight className="size-3.5 group-hover:text-blue-600" /></p></Card></a>)}</section>
+      <section className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map(({ label, value, meta, icon: Icon, tone, href }) => (
+          <Link to={href} key={label} className="group">
+            <Card className={`h-full p-3 transition group-hover:border-blue-300 group-hover:shadow-md ${panel}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase text-slate-500">{label}</p>
+                  <p className="mt-1 break-words text-xl font-semibold leading-tight text-slate-900">{value}</p>
+                </div>
+                <div className={`shrink-0 rounded border p-1.5 ${tone}`}>
+                  <Icon className="size-4" />
+                </div>
+              </div>
+              <p className="mt-2 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                <span>{meta}</span>
+                <ArrowUpRight className="size-3.5 group-hover:text-blue-600" />
+              </p>
+            </Card>
+          </Link>
+        ))}
+      </section>
 
-    <section className="grid gap-3 xl:grid-cols-[1.55fr_1fr]">
-      <Card className={`overflow-hidden ${panel}`}><div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5"><div><div className="flex items-center gap-2"><h3 className="text-sm font-semibold text-slate-900">Needs attention</h3><span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{itemCount} items</span></div><p className="mt-0.5 text-[11px] text-slate-500">Prioritized workspace follow-ups</p></div><a href="/updates" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Open updates <ArrowRight className="ml-1 inline size-3" /></a></div><div className="divide-y divide-slate-100">{pendingRequests.slice(0, 3).map((item) => <a href="/requests" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50"><div className="flex size-8 shrink-0 items-center justify-center rounded bg-amber-50 text-amber-700"><Clock3 className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{item.requestNumber} · {item.pageName}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.client?.name || "Unassigned client"} · {item.objective}</p></div><StatusBadge tone={requestTone(item.status)}>{item.status}</StatusBadge></a>)}{overdueInvoices.slice(0, 2).map((item) => <a href="/billing" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50"><div className="flex size-8 shrink-0 items-center justify-center rounded bg-rose-50 text-rose-700"><CircleDollarSign className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{item.invoiceNumber} · {item.client?.name || item.pageName}</p><p className="mt-0.5 text-[11px] text-slate-500">Payment follow-up required</p></div><span className="text-xs font-semibold text-rose-700">{formatMoney(item.amount, item.currency)}</span></a>)}{staleCampaigns.slice(0, 2).map((item) => <a href="/campaigns" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50"><div className="flex size-8 shrink-0 items-center justify-center rounded bg-red-50 text-red-700"><RefreshCw className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{item.name}</p><p className="mt-0.5 text-[11px] text-slate-500">{item.isStale ? "Sync is stale" : "Campaign delivery failed"}</p></div><StatusBadge tone={campaignTone(item.status)}>{item.status}</StatusBadge></a>)}{!itemCount && <div className="flex items-center gap-3 p-6 text-xs text-slate-500"><CheckCircle2 className="size-5 text-emerald-600" />Everything is under control right now.</div>}</div></Card>
+      <section className="grid gap-3 xl:grid-cols-[1.55fr_1fr]">
+        <Card className={`overflow-hidden ${panel}`}>
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2.5">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-900">Needs attention</h3>
+                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{itemCount} items</span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-slate-500">Prioritized workspace follow-ups</p>
+            </div>
+            <Link to="/updates" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+              Open updates <ArrowRight className="ml-1 inline size-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {pendingRequests.slice(0, 3).map((item) => (
+              <Link to="/requests" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded bg-amber-50 text-amber-700">
+                  <Clock3 className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-slate-800">{item.requestNumber} · {item.pageName}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-slate-500">{item.client?.name || "Unassigned client"} · {item.objective}</p>
+                </div>
+                <StatusBadge tone={requestTone(item.status)}>{item.status}</StatusBadge>
+              </Link>
+            ))}
+            {overdueInvoices.slice(0, 2).map((item) => (
+              <Link to="/billing" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded bg-rose-50 text-rose-700">
+                  <CircleDollarSign className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-slate-800">{item.invoiceNumber} · {item.client?.name || item.pageName}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Payment follow-up required</p>
+                </div>
+                <span className="text-xs font-semibold text-rose-700">{formatMoney(item.amount, item.currency)}</span>
+              </Link>
+            ))}
+            {staleCampaigns.slice(0, 2).map((item) => (
+              <Link to="/campaigns" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded bg-red-50 text-red-700">
+                  <RefreshCw className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-slate-800">{item.name}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{item.isStale ? "Sync is stale" : "Campaign delivery failed"}</p>
+                </div>
+                <StatusBadge tone={campaignTone(item.status)}>{item.status}</StatusBadge>
+              </Link>
+            ))}
+            {!itemCount && (
+              <div className="flex items-center gap-3 p-6 text-xs text-slate-500">
+                <CheckCircle2 className="size-5 text-emerald-600" />
+                Everything is under control right now.
+              </div>
+            )}
+          </div>
+        </Card>
 
-      <Card className={`p-3 ${panel}`}><div className="flex items-start justify-between"><div><h3 className="text-sm font-semibold text-slate-900">Campaign spend</h3><p className="mt-0.5 text-[11px] text-slate-500">Current CRM campaigns</p></div><span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{fallbackCurrency}</span></div>{trend.length ? <div className="mt-3 h-44"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ left: -20, right: 8 }}><defs><linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2563eb" stopOpacity={0.18}/><stop offset="100%" stopColor="#2563eb" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/><YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ background: "#ffffff", color: "#0f172a", border: "1px solid #e2e8f0", borderRadius: 4, fontSize: 11 }} /><Area type="monotone" dataKey="spend" stroke="#2563eb" strokeWidth={2} fill="url(#spendFill)" /></AreaChart></ResponsiveContainer></div> : <div className="mt-3 flex h-44 flex-col items-center justify-center gap-2 text-xs text-slate-500"><Megaphone className="size-5" />Campaign spend will appear here.</div>}<div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2 text-[11px]"><span className="text-slate-500">Facebook source</span><span className="font-medium text-slate-600">{sourceLabel}</span></div></Card>
-    </section>
+        <Card className={`p-3 ${panel}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Campaign spend</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">Current CRM campaigns</p>
+            </div>
+            <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{fallbackCurrency}</span>
+          </div>
+          {trend.length ? (
+            <div className="mt-3 h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend} margin={{ left: -20, right: 8 }}>
+                  <defs>
+                    <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.18} />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: "#ffffff", color: "#0f172a", border: "1px solid #e2e8f0", borderRadius: 4, fontSize: 11 }} />
+                  <Area type="monotone" dataKey="spend" stroke="#2563eb" strokeWidth={2} fill="url(#spendFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="mt-3 flex h-44 flex-col items-center justify-center gap-2 text-xs text-slate-500">
+              <Megaphone className="size-5" />
+              Campaign spend will appear here.
+            </div>
+          )}
+          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2 text-[11px]">
+            <span className="text-slate-500">Facebook source</span>
+            <span className="font-medium text-slate-600">{sourceLabel}</span>
+          </div>
+        </Card>
+      </section>
 
-    <section className="grid gap-3 xl:grid-cols-[1.3fr_1fr]">
-      <Card className={`overflow-hidden ${panel}`}><div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5"><div><h3 className="text-sm font-semibold text-slate-900">Client pulse</h3><p className="mt-0.5 text-[11px] text-slate-500">Active clients with live activity</p></div><a href="/clients" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View clients <ArrowRight className="ml-1 inline size-3" /></a></div><div className="grid gap-2 p-2 sm:grid-cols-2">{activeClients.slice(0, 6).map((client) => <a href="/clients" key={client._id} className="rounded border border-slate-200 bg-white p-2.5 hover:border-blue-300 hover:bg-blue-50/30"><div className="flex items-center gap-2.5"><span className="flex size-8 items-center justify-center rounded text-[11px] font-bold text-white" style={{ backgroundColor: client.color || "#2563eb" }}>{client.name.slice(0, 2).toUpperCase()}</span><div className="min-w-0"><p className="truncate text-xs font-semibold text-slate-800">{client.name}</p><p className="truncate text-[11px] text-slate-500">{client.activeCampaigns} active campaigns</p></div></div><div className="mt-2 flex items-center justify-between text-[11px]"><span className="text-slate-500">Spend to date</span><span className="font-semibold text-slate-700">{formatMoney(client.totalSpend, fallbackCurrency)}</span></div></a>)}{!activeClients.length && <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-xs text-slate-500 sm:col-span-2"><Users className="size-5" />Active client data will appear here.</div>}</div></Card>
+      <section className="grid gap-3 xl:grid-cols-[1.3fr_1fr]">
+        <Card className={`overflow-hidden ${panel}`}>
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Client pulse</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">Active clients with live activity</p>
+            </div>
+            <Link to="/clients" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+              View clients <ArrowRight className="ml-1 inline size-3" />
+            </Link>
+          </div>
+          <div className="grid gap-2 p-2 sm:grid-cols-2">
+            {activeClients.slice(0, 6).map((client) => (
+              <Link to="/clients" key={client._id} className="rounded border border-slate-200 bg-white p-2.5 hover:border-blue-300 hover:bg-blue-50/30">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 items-center justify-center rounded text-[11px] font-bold text-white" style={{ backgroundColor: client.color || "#2563eb" }}>
+                    {client.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-slate-800">{client.name}</p>
+                    <p className="truncate text-[11px] text-slate-500">{client.activeCampaigns} active campaigns</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500">Spend to date</span>
+                  <span className="font-semibold text-slate-700">{formatMoney(client.totalSpend, fallbackCurrency)}</span>
+                </div>
+              </Link>
+            ))}
+            {!activeClients.length && (
+              <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-xs text-slate-500 sm:col-span-2">
+                <Users className="size-5" />
+                Active client data will appear here.
+              </div>
+            )}
+          </div>
+        </Card>
 
-      <Card className={`overflow-hidden ${panel}`}><div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5"><div><h3 className="text-sm font-semibold text-slate-900">Recent requests</h3><p className="mt-0.5 text-[11px] text-slate-500">Latest pipeline activity</p></div><a href="/requests" className="text-xs font-semibold text-blue-600 hover:text-blue-700">View queue <ArrowRight className="ml-1 inline size-3" /></a></div>{requests.length ? <div className="divide-y divide-slate-100">{requests.slice(0, 4).map((item) => <a href="/requests" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50"><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{item.requestNumber}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{item.client?.name || item.pageName}</p></div><div className="text-right"><StatusBadge tone={requestTone(item.status)}>{item.status}</StatusBadge><p className="mt-0.5 text-[10px] text-slate-400">{formatDate(item.createdAt)}</p></div></a>)}</div> : <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-xs text-slate-500"><FileText className="size-5" />No requests have been submitted.</div>}</Card>
-    </section>
-  </div>;
+        <Card className={`overflow-hidden ${panel}`}>
+          <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Recent requests</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">Latest pipeline activity</p>
+            </div>
+            <Link to="/requests" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+              View queue <ArrowRight className="ml-1 inline size-3" />
+            </Link>
+          </div>
+          {requests.length ? (
+            <div className="divide-y divide-slate-100">
+              {requests.slice(0, 4).map((item) => (
+                <Link to="/requests" key={item._id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-slate-800">{item.requestNumber}</p>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-500">{item.client?.name || item.pageName}</p>
+                  </div>
+                  <div className="text-right">
+                    <StatusBadge tone={requestTone(item.status)}>{item.status}</StatusBadge>
+                    <p className="mt-0.5 text-[10px] text-slate-400">{formatDate(item.createdAt)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-28 flex-col items-center justify-center gap-2 text-xs text-slate-500">
+              <FileText className="size-5" />
+              No requests have been submitted.
+            </div>
+          )}
+        </Card>
+      </section>
+    </div>
+  );
 }

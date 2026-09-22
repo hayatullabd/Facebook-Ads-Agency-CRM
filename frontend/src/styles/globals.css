@@ -621,3 +621,17 @@
   background: var(--crm-primary) !important;
   color: #fff !important;
 }
+
+/* Polished shell depth and rhythm. */
+.crm-theme-shell .crm-topbar {
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.2), 0 10px 24px -20px rgba(15, 23, 42, 0.45);
+}
+.crm-theme-shell .crm-panel,
+.crm-theme-shell .crm-surface,
+.crm-theme-shell .crm-feature-panel {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 24px -22px rgba(30, 64, 175, 0.3);
+}
+.crm-theme-shell .crm-page-header {
+  border-color: #cfd8e3;
+  background: linear-gradient(180deg, #f3f7fd 0%, #eef3f9 100%);
+}

@@ -94,7 +94,7 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
         </div>
       </SidebarNav>
       {open && <button className="fixed inset-0 z-40 bg-[#10213d]/60 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}
-      <nav aria-label="Quick navigation" className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-around gap-1 rounded-lg border border-[#d5dce6] bg-white/95 p-1 shadow-[0_4px_16px_rgba(15,35,65,0.18)] backdrop-blur lg:hidden">{items.slice(0, 4).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)} aria-current={screen === id ? "page" : undefined} className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded px-2 py-1.5 text-[10px] font-semibold transition ${screen === id ? "bg-[#e8eef6] text-[#183b68]" : "text-slate-500 hover:text-[#183b68]"}`}><Icon className="size-4" /><span className="max-w-full truncate">{label}</span></button>)}</nav>
+      <nav aria-label="Quick navigation" className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-around gap-1 rounded-lg border border-[#d5dce6] bg-white/95 p-1 shadow-[0_4px_16px_rgba(15,35,65,0.18)] backdrop-blur lg:hidden">{items.slice(0, 5).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)} aria-current={screen === id ? "page" : undefined} className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded px-2 py-1.5 text-[10px] font-semibold transition ${screen === id ? "bg-[#e8eef6] text-[#183b68]" : "text-slate-500 hover:text-[#183b68]"}`}><Icon className="size-4" /><span className="max-w-full truncate">{label}</span></button>)}</nav>
     </>
   );
 }
