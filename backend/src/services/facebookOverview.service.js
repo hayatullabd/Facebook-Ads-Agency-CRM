@@ -2,6 +2,7 @@ import { env } from "../config/env.js";
 import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import Campaign from "../models/Campaign.model.js";
+import CampaignDailyStat from "../models/CampaignDailyStat.model.js";
 import Invoice from "../models/Invoice.model.js";
 import { getClientCampaignVisibility } from "./campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -14,6 +15,7 @@ const CAMPAIGN_INSIGHT_FIELDS = "campaign_id,campaign_name,spend,reach,impressio
 const AD_SET_INSIGHT_FIELDS = "campaign_id,adset_id,impressions,reach,actions";
 const AD_SET_FIELDS = "id,campaign_id,optimization_goal";
 const ACCOUNT_INSIGHT_FIELDS = "spend";
+const DAILY_INSIGHT_FIELDS = "campaign_id,spend,impressions,reach,ctr,actions";
 
 const AD_SET_RESULT_CONFIG = {
   OFFSITE_CONVERSIONS: { label: "Website purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase"] },
@@ -261,6 +263,49 @@ async function fetchFacebookCampaignInsightsUncached({ facebookAdAccountId, acce
   return { rows, resultMetrics };
 }
 
+export async function storeCampaignDailyStats({ agencyId, facebookAdAccountId, accessToken, currency, since, until, datePreset }) {
+  const sourceCurrency = String(currency || "").trim().toUpperCase();
+  if (!agencyId || !facebookAdAccountId || !accessToken || !sourceCurrency) return 0;
+  const params = new URLSearchParams({
+    fields: DAILY_INSIGHT_FIELDS,
+    level: "campaign",
+    time_increment: "1",
+    limit: "500",
+  });
+  if (datePreset) params.set("date_preset", datePreset);
+  else if (since && until) params.set("time_range", JSON.stringify({ since, until }));
+  else return 0;
+  const rows = await fetchAll(`/${facebookAdAccountId}/insights?${params.toString()}`, accessToken);
+  const operations = [];
+  for (const row of rows) {
+    const facebookCampaignId = String(row.campaign_id || "");
+    const date = String(row.date_start || "");
+    if (!facebookCampaignId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const selected = selectedResultFromActions(row.actions);
+    operations.push({
+      updateOne: {
+        filter: { agency: agencyId, facebookAdAccountId, facebookCampaignId, date },
+        update: {
+          $set: {
+            spend: number(row.spend),
+            impressions: number(row.impressions),
+            reach: number(row.reach),
+            results: selected.value,
+            resultMetric: selected.metric,
+            ctrAll: number(row.ctr),
+            currency: sourceCurrency,
+          },
+        },
+        upsert: true,
+      },
+    });
+  }
+  for (let index = 0; index < operations.length; index += 1000) {
+    await CampaignDailyStat.bulkWrite(operations.slice(index, index + 1000), { ordered: false });
+  }
+  return operations.length;
+}
+
 export function fetchFacebookCampaignInsights(options) {
   const key = [options.facebookAdAccountId, options.since, options.until, String(options.currency || "").toUpperCase()].join(":");
   const now = Date.now();
@@ -471,12 +516,20 @@ async function syncAccount(agencyId, account, accessToken) {
   }
   let writeResult = { matchedCount: 0, modifiedCount: 0, upsertedCount: 0 };
   if (operations.length) writeResult = await Campaign.bulkWrite(operations, { ordered: false });
+  const dailyCount = await storeCampaignDailyStats({
+    agencyId,
+    facebookAdAccountId: accountId,
+    accessToken,
+    currency: account.currency,
+    datePreset: "last_30d",
+  });
   const staleResult = await Campaign.updateMany({ agency: agencyId, source: "facebook", facebookAdAccountId: accountId, facebookCampaignId: { $nin: seenIds }, isStale: { $ne: true } }, { $set: { isStale: true } });
   return {
     account: accountId,
     accountName: account.name,
     campaignCount: seenIds.length,
     insightCount: insights.length,
+    dailyCount,
     matchedCount: writeResult.matchedCount || 0,
     modifiedCount: writeResult.modifiedCount || 0,
     upsertedCount: writeResult.upsertedCount || 0,

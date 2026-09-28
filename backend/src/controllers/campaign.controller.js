@@ -1,7 +1,7 @@
 import Campaign from "../models/Campaign.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import { getClientCampaignVisibility, setCampaignClientAssignment, setCampaignRequestAssignment } from "../services/campaignAssignment.service.js";
-import { fetchFacebookAccountReport, fetchFacebookCampaignDelivery, fetchFacebookCampaignInsights } from "../services/facebookOverview.service.js";
+import { fetchFacebookAccountReport, fetchFacebookCampaignDelivery, fetchFacebookCampaignInsights, storeCampaignDailyStats } from "../services/facebookOverview.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -68,6 +68,16 @@ export const getCampaignInsights = asyncHandler(async (req, res) => {
         currency: accountCurrencies.get(facebookAdAccountId),
       }),
       fetchFacebookCampaignDelivery(facebookAdAccountId, accessToken),
+      storeCampaignDailyStats({
+        agencyId: agency,
+        facebookAdAccountId,
+        accessToken,
+        currency: accountCurrencies.get(facebookAdAccountId),
+        since: req.query.since,
+        until: req.query.until,
+      }).catch((error) => {
+        console.error("Daily campaign stats were not saved:", error?.message || error);
+      }),
     ]);
     for (const row of insightPayload.rows) insightsByCampaign.set(`${facebookAdAccountId}:${row.facebookCampaignId}`, row);
     for (const [id, status] of delivery) deliveryByCampaign.set(`${facebookAdAccountId}:${id}`, { ...status, resultMetric: insightPayload.resultMetrics.get(id) || status.resultMetric || "" });

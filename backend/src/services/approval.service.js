@@ -5,6 +5,7 @@ import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import Attachment from "../models/Attachment.model.js";
 import Campaign from "../models/Campaign.model.js";
+import CampaignDailyStat from "../models/CampaignDailyStat.model.js";
 import Client from "../models/Client.model.js";
 import ClientUpdate from "../models/ClientUpdate.model.js";
 import Comment from "../models/Comment.model.js";
@@ -43,6 +44,7 @@ const agencyDataModels = [
   User,
   Client,
   Campaign,
+  CampaignDailyStat,
   AdRequest,
   Invoice,
   PaymentTransaction,
