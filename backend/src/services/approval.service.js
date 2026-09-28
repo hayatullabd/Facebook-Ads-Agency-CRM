@@ -1,6 +1,22 @@
+import mongoose from "mongoose";
+import ActivityLog from "../models/ActivityLog.model.js";
+import AdRequest from "../models/AdRequest.model.js";
 import Agency from "../models/Agency.model.js";
+import ApiCredential from "../models/ApiCredential.model.js";
+import Attachment from "../models/Attachment.model.js";
+import Campaign from "../models/Campaign.model.js";
+import Client from "../models/Client.model.js";
+import ClientUpdate from "../models/ClientUpdate.model.js";
+import Comment from "../models/Comment.model.js";
+import FacebookSyncJob from "../models/FacebookSyncJob.model.js";
+import Invoice from "../models/Invoice.model.js";
+import PaymentAccount from "../models/PaymentAccount.model.js";
+import PaymentTransaction from "../models/PaymentTransaction.model.js";
+import Sequence from "../models/Sequence.model.js";
+import Subscription from "../models/Subscription.model.js";
+import SubscriptionInvoice from "../models/SubscriptionInvoice.model.js";
 import User from "../models/User.model.js";
-import { ROLES, USER_STATUSES, WORKSPACE_STATUSES } from "../constants/roles.js";
+import { PLATFORM_ROLES, ROLES, USER_STATUSES, WORKSPACE_STATUSES } from "../constants/roles.js";
 import { ApiError } from "../utils/ApiError.js";
 import { validateClientAndAdRequest } from "./referenceValidation.service.js";
 
@@ -21,6 +37,46 @@ export const decideWorkspace = async (agencyId, decision) => {
     { $set: { status: approved ? USER_STATUSES.ACTIVE : USER_STATUSES.REJECTED, isActive: approved } }
   );
   return agency.populate("owner", "name email role platformRole status isActive");
+};
+
+const agencyDataModels = [
+  User,
+  Client,
+  Campaign,
+  AdRequest,
+  Invoice,
+  PaymentTransaction,
+  PaymentAccount,
+  ClientUpdate,
+  Comment,
+  Attachment,
+  ActivityLog,
+  ApiCredential,
+  FacebookSyncJob,
+  Subscription,
+  SubscriptionInvoice,
+  Sequence,
+];
+
+export const deleteWorkspace = async (agencyId, actor) => {
+  const agency = await Agency.findById(agencyId);
+  if (!agency) throw new ApiError(404, "Agency not found");
+  if (String(agency._id) === String(actor?.agency)) throw new ApiError(403, "The platform workspace cannot be deleted");
+  const protectedOwner = await User.exists({ agency: agency._id, platformRole: PLATFORM_ROLES.ADMIN });
+  if (protectedOwner) throw new ApiError(403, "The platform workspace cannot be deleted");
+
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      for (const Model of agencyDataModels) {
+        await Model.deleteMany({ agency: agency._id }).session(session);
+      }
+      await Agency.deleteOne({ _id: agency._id }).session(session);
+    });
+  } finally {
+    await session.endSession();
+  }
+  return { deleted: true, _id: agency._id, name: agency.name };
 };
 
 export const listPendingUsers = (agencyId) => User.find({ agency: agencyId, status: USER_STATUSES.PENDING })

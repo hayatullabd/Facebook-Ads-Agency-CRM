@@ -7,6 +7,7 @@ import {
   getPendingWorkspaces,
   rejectUser,
   rejectWorkspace,
+  removeWorkspace,
   reviewUser,
   reviewWorkspace,
 } from "../controllers/approval.controller.js";
@@ -27,6 +28,7 @@ router.get("/workspaces", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), getPendi
 router.patch("/workspaces/:agencyId", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateDecision, reviewWorkspace);
 router.post("/workspaces/:agencyId/approve", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateEmptyDecision, approveWorkspace);
 router.post("/workspaces/:agencyId/reject", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateEmptyDecision, rejectWorkspace);
+router.delete("/workspaces/:agencyId", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), removeWorkspace);
 
 router.get("/users/:agencyId", agencyScopeMiddleware, roleMiddleware("admin"), getPendingUsers);
 router.patch("/users/:agencyId/:userId", agencyScopeMiddleware, roleMiddleware("admin"), validateUserDecision, reviewUser);

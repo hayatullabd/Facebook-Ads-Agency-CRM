@@ -45,3 +45,5 @@ export const decideWorkspace = (agencyId: string, decision: "approve" | "reject"
   method: "POST",
   body: "{}",
 });
+
+export const deleteWorkspace = (agencyId: string) => apiRequest<{ deleted: boolean; name: string }>(`/approvals/workspaces/${agencyId}`, { method: "DELETE" });

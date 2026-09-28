@@ -1,5 +1,5 @@
 import { createAgencyWorkspace } from "../services/auth.service.js";
-import { decideUser, decideWorkspace, listPendingUsers, listPendingWorkspaces } from "../services/approval.service.js";
+import { decideUser, decideWorkspace, deleteWorkspace, listPendingUsers, listPendingWorkspaces } from "../services/approval.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { serializePublicUser } from "../utils/serializePublicUser.js";
@@ -23,6 +23,11 @@ const handleWorkspaceDecision = (decision) => asyncHandler(async (req, res) => {
   const resolvedDecision = decision || req.body.decision;
   const workspace = await decideWorkspace(req.params.agencyId, resolvedDecision);
   res.json(new ApiResponse(200, workspace, `Workspace ${resolvedDecision}d`));
+});
+
+export const removeWorkspace = asyncHandler(async (req, res) => {
+  const result = await deleteWorkspace(req.params.agencyId, req.user);
+  res.json(new ApiResponse(200, result, "Agency deleted"));
 });
 
 export const reviewWorkspace = handleWorkspaceDecision();

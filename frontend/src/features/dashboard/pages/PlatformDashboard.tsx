@@ -5,7 +5,7 @@ import { formatDate, formatMoney } from "../../../lib/formatters";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { createPlatformInvoice, deletePlatformInvoice, getPlatformInvoices, getSubscriptionPlans, markPlatformInvoicePaid, type PlatformInvoice, type SubscriptionPlan } from "../../subscriptions/subscriptionsApi";
-import { createWorkspace, decideWorkspace, getPlatformDashboard, type PlatformDashboard as PlatformDashboardData, type PlatformWorkspace } from "../platformDashboardApi";
+import { createWorkspace, decideWorkspace, deleteWorkspace, getPlatformDashboard, type PlatformDashboard as PlatformDashboardData, type PlatformWorkspace } from "../platformDashboardApi";
 
 const moneyMap = (totals: Record<string, number>) => {
   const entries = Object.entries(totals);
@@ -41,6 +41,7 @@ export function PlatformDashboard() {
   const [invoices, setInvoices] = useState<PlatformInvoice[]>([]);
   const [billForm, setBillForm] = useState({ agency: "", amount: "", currency: "BDT" as PlatformInvoice["currency"], dueDate: "", note: "" });
   const [confirmInvoiceId, setConfirmInvoiceId] = useState("");
+  const [removing, setRemoving] = useState<PlatformWorkspace | null>(null);
   const [form, setForm] = useState({ agencyName: "", name: "", email: "", password: "", plan: "" });
 
   const load = useCallback(async () => {
@@ -112,6 +113,23 @@ export function PlatformDashboard() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the invoice");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const removeAgency = async () => {
+    if (!removing) return;
+    setBusy("delete");
+    setError("");
+    setNotice("");
+    try {
+      await deleteWorkspace(removing._id);
+      setNotice(`${removing.name} and its logins, clients, campaigns, and payments were deleted.`);
+      setRemoving(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the agency");
     } finally {
       setBusy("");
     }
@@ -237,7 +255,7 @@ export function PlatformDashboard() {
       </section>}
 
       {tab === "agencies" && <section className="overflow-hidden rounded border border-slate-200 bg-white">
-        <div className="overflow-x-auto"><table className="crm-compact-table min-w-[820px]"><thead className="crm-table-head"><tr><th>Agency</th><th>Owner</th><th>Plan</th><th>Clients</th><th>Status</th><th>Joined</th><th className="text-right">Bill</th></tr></thead><tbody>{agencies.length ? agencies.map((item) => <tr key={item._id}><td className="crm-table-cell font-semibold text-slate-800">{item.name}</td><td className="crm-table-cell"><p>{item.ownerName}</p><p className="text-[11px] text-slate-500">{item.ownerEmail}</p></td><td className="crm-table-cell">{item.planName}{item.planPrice == null ? "" : ` · ${formatMoney(item.planPrice, item.planCurrency)}`}</td><td className="crm-table-cell">{(item.clientLimit || 0) > 0 ? `${item.clientCount || 0} / ${item.clientLimit}` : item.clientCount || 0}</td><td className="crm-table-cell"><StatusBadge tone={subscriptionTone(item.subscriptionStatus)}>{item.subscriptionStatus.replace("_", " ")}</StatusBadge></td><td className="crm-table-cell text-slate-500">{formatDate(item.createdAt)}</td><td className="crm-table-cell text-right"><button type="button" className="rounded border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50" onClick={() => fillBill(item._id)}>Bill</button></td></tr>) : <tr><td className="crm-table-cell text-slate-500" colSpan={7}>{data ? "No agencies yet." : "Loading agencies..."}</td></tr>}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="crm-compact-table min-w-[820px]"><thead className="crm-table-head"><tr><th>Agency</th><th>Owner</th><th>Plan</th><th>Clients</th><th>Status</th><th>Joined</th><th className="text-right">Actions</th></tr></thead><tbody>{agencies.length ? agencies.map((item) => <tr key={item._id}><td className="crm-table-cell font-semibold text-slate-800">{item.name}</td><td className="crm-table-cell"><p>{item.ownerName}</p><p className="text-[11px] text-slate-500">{item.ownerEmail}</p></td><td className="crm-table-cell">{item.planName}{item.planPrice == null ? "" : ` · ${formatMoney(item.planPrice, item.planCurrency)}`}</td><td className="crm-table-cell">{(item.clientLimit || 0) > 0 ? `${item.clientCount || 0} / ${item.clientLimit}` : item.clientCount || 0}</td><td className="crm-table-cell"><StatusBadge tone={subscriptionTone(item.subscriptionStatus)}>{item.subscriptionStatus.replace("_", " ")}</StatusBadge></td><td className="crm-table-cell text-slate-500">{formatDate(item.createdAt)}</td><td className="crm-table-cell text-right"><div className="flex justify-end gap-1"><button type="button" className="rounded border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50" onClick={() => fillBill(item._id)}>Bill</button><button type="button" className="crm-icon-button text-rose-700" aria-label={`Delete ${item.name}`} onClick={() => { setRemoving(item); setError(""); }}><Trash2 className="size-3.5" /></button></div></td></tr>) : <tr><td className="crm-table-cell text-slate-500" colSpan={7}>{data ? "No agencies yet." : "Loading agencies..."}</td></tr>}</tbody></table></div>
       </section>}
 
       {tab === "billing" && <section className="overflow-hidden rounded border border-slate-200 bg-white">
@@ -251,6 +269,18 @@ export function PlatformDashboard() {
         </form>
         <div className="overflow-x-auto"><table className="crm-compact-table min-w-[720px]"><thead className="crm-table-head"><tr><th>Invoice</th><th>Agency</th><th>Amount</th><th>Due</th><th>Status</th><th className="text-right">Collect</th></tr></thead><tbody>{invoices.length ? invoices.map((invoice) => <tr key={invoice._id}><td className="crm-table-cell font-semibold text-slate-800">{invoice.invoiceNumber}</td><td className="crm-table-cell">{invoice.agencyName}</td><td className="crm-table-cell">{formatMoney(invoice.amount, invoice.currency)}</td><td className="crm-table-cell">{formatDate(invoice.dueDate)}</td><td className="crm-table-cell"><StatusBadge tone={invoice.status === "Paid" ? "success" : invoice.status === "Overdue" ? "danger" : "warning"}>{invoice.status}</StatusBadge></td><td className="crm-table-cell"><div className="flex justify-end gap-1">{invoice.status !== "Paid" && <button type="button" disabled={busy === "invoice"} className="rounded bg-[#1d4ed8] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#1e40af] disabled:opacity-50" onClick={() => void collectInvoice(() => markPlatformInvoicePaid(invoice._id))}>Mark paid</button>}{confirmInvoiceId === invoice._id ? <><button type="button" disabled={busy === "invoice"} className="rounded bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50" onClick={() => void collectInvoice(async () => { await deletePlatformInvoice(invoice._id); setConfirmInvoiceId(""); })}>Delete</button><button type="button" className="rounded border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700" onClick={() => setConfirmInvoiceId("")}>Cancel</button></> : <button type="button" className="crm-icon-button text-rose-700" aria-label={`Delete ${invoice.invoiceNumber}`} onClick={() => setConfirmInvoiceId(invoice._id)}><Trash2 className="size-3.5" /></button>}</div></td></tr>) : <tr><td className="crm-table-cell text-slate-500" colSpan={6}>No agency invoices yet.</td></tr>}</tbody></table></div>
       </section>}
+
+      {removing && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+        <Card className="w-full max-w-md p-5">
+          <h3 className="text-lg font-semibold text-slate-900">Delete {removing.name}?</h3>
+          <p className="mt-2 text-sm text-slate-600">This removes the agency, its owner login, team, clients, campaigns, invoices, and payments. Subscription plans stay. This cannot be undone.</p>
+          {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <button type="button" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => { setRemoving(null); setError(""); }}>Cancel</button>
+            <button type="button" disabled={busy === "delete"} className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50" onClick={() => void removeAgency()}>{busy === "delete" ? "Deleting..." : "Delete agency"}</button>
+          </div>
+        </Card>
+      </div>}
 
       {adding && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
         <Card className="w-full max-w-lg p-5">
