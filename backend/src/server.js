@@ -44,8 +44,12 @@ const shutdown = (reason, exitCode) => {
 const bootstrap = async () => {
   await startServer();
   try {
-    server = app.listen(env.port, () => {
-      console.log(`Server running on port ${env.port}`);
+    server = app.listen(env.port, "0.0.0.0", () => {
+      console.log(`Server running on 0.0.0.0:${env.port}`);
+    });
+    server.on("error", (error) => {
+      console.error("Server failed to listen:", error?.stack || error);
+      void shutdown("listen error", 1);
     });
   } catch (error) {
     if (isPortInUseError(error)) {
