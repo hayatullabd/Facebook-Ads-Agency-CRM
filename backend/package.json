@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "check": "node src/scripts/checkSyntax.js",
+    "test": "node --import ./src/tests/register-env.js --test src/tests/core-rules.test.js",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/scripts/seed.js",
@@ -22,6 +23,7 @@
     "morgan": "^1.10.0"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.9"
   }
 }
