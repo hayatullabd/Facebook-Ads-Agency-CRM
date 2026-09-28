@@ -1,5 +1,10 @@
 import { validateObject } from "./common.validator.js";
 
+export const validatePasswordChange = validateObject({
+  currentPassword: { required: true, type: "string", minLength: 1, maxLength: 200 },
+  newPassword: { required: true, type: "string", minLength: 12, maxLength: 200 },
+}, "body", true);
+
 export const validateLogin = validateObject({
   email: { required: true, type: "string", email: true, trim: true },
   password: { required: true, type: "string", minLength: 1 },

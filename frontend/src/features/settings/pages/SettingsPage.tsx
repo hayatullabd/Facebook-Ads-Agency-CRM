@@ -2,13 +2,59 @@ import { useEffect, useState, type FormEvent } from "react";
 import { apiRequest } from "../../../lib/api";
 import { formatDate } from "../../../lib/formatters";
 import type { ActivityLog, AgencyProfile, FacebookOverview, Role, UserAccount } from "../../../types/crm";
-import type { AuthUser } from "../../auth/authApi";
+import { changePassword, type AuthUser } from "../../auth/authApi";
 import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { TEAM_FEATURE_OPTIONS, TeamFeatureChecklist, teamFeatureLabel } from "../../users/TeamFeatureChecklist";
 import { createUser, updateUser } from "../../users/usersApi";
 import { disconnectFacebook, getAgency, getFacebookOverview, saveAgencySettings, saveFacebookSettings } from "../settingsApi";
 import { AgencyPaymentDetailsPanel } from "../../billing/AgencyPaymentDetails";
+
+function PasswordPanel() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    if (newPassword !== confirmPassword) {
+      setError("New password and confirmation do not match");
+      return;
+    }
+    setBusy(true);
+    try {
+      await changePassword({ currentPassword, newPassword });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setMessage("Password updated.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Password could not be changed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <section className="overflow-hidden rounded border border-slate-200 bg-white">
+    <div className="border-b border-slate-200 px-4 py-3">
+      <h3 className="text-sm font-semibold text-slate-900">Password</h3>
+      <p className="mt-0.5 text-xs text-slate-500">Use your current password. The new one needs 12+ characters, with uppercase, lowercase, a number, and a symbol.</p>
+    </div>
+    <form className="grid gap-3 p-4 sm:grid-cols-3" onSubmit={submit}>
+      {error && <div role="alert" className="sm:col-span-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {message && <div role="status" className="sm:col-span-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</div>}
+      <label><span className="crm-label">Current password</span><input required type="password" autoComplete="current-password" className="crm-input" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+      <label><span className="crm-label">New password</span><input required minLength={12} type="password" autoComplete="new-password" className="crm-input" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
+      <label><span className="crm-label">Confirm new password</span><input required minLength={12} type="password" autoComplete="new-password" className="crm-input" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
+      <button disabled={busy} className="h-9 w-fit rounded bg-[#1d4ed8] px-3 text-xs font-semibold text-white hover:bg-[#1e40af] disabled:opacity-50 sm:col-span-3">{busy ? "Saving..." : "Change password"}</button>
+    </form>
+  </section>;
+}
 
 type SettingsTab = "workspace" | "facebook" | "payments" | "team" | "activity";
 type Connection = FacebookOverview["connection"];
@@ -151,6 +197,7 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh, platformRole, user 
           <div className="px-4 py-3"><dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Access</dt><dd className="mt-1 text-sm font-semibold text-slate-900">SaaS owner</dd></div>
         </dl>
       </section>
+      <PasswordPanel />
     </div>;
   }
 
@@ -193,6 +240,8 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh, platformRole, user 
         <button disabled={busy === "general"} className="h-9 rounded bg-[#1d4ed8] px-3 text-xs font-semibold text-white hover:bg-[#1e40af] disabled:opacity-50">{busy === "general" ? "Saving..." : "Save profile"}</button>
       </form>
     </section>}
+
+    {tab === "workspace" && <PasswordPanel />}
 
     {tab === "payments" && <AgencyPaymentDetailsPanel agencyId={agencyId} canEdit />}
 

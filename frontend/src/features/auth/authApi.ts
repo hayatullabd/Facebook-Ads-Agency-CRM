@@ -55,6 +55,11 @@ export const login = (payload: { email: string; password: string; portalRole?: s
   body: JSON.stringify(payload),
 });
 
+export const changePassword = (payload: { currentPassword: string; newPassword: string }) => apiRequest<null>("/auth/password", {
+  method: "POST",
+  body: JSON.stringify(payload),
+});
+
 export const register = (payload: { agencyName: string; name: string; email: string; password: string; mode?: RegistrationMode }) => apiRequest<RegistrationResponse>("/auth/register", {
   method: "POST",
   body: JSON.stringify(payload),

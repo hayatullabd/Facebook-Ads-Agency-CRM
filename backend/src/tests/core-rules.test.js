@@ -7,8 +7,10 @@ import Campaign from "../models/Campaign.model.js";
 import Client from "../models/Client.model.js";
 import Invoice from "../models/Invoice.model.js";
 import PaymentAccount from "../models/PaymentAccount.model.js";
+import ApiCredential from "../models/ApiCredential.model.js";
 import User from "../models/User.model.js";
-import { loginAccount } from "../services/auth.service.js";
+import { changeAccountPassword, loginAccount } from "../services/auth.service.js";
+import { TOKEN_PREFIX } from "../services/tokenCipher.service.js";
 import { setCampaignRequestAssignment } from "../services/campaignAssignment.service.js";
 import { applyAdvanceToInvoice, recordClientAdvance } from "../services/payment.service.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -121,6 +123,42 @@ describe("advance payments", () => {
     const account = await PaymentAccount.findOne({ agency: agency._id, client: client._id });
     assert.equal(account.balance, 0);
     await assert.rejects(() => applyAdvanceToInvoice({ agencyId: agency._id, actor, invoiceId: invoice._id, amount: 10 }), (error) => error instanceof ApiError && error.statusCode === 409);
+  });
+});
+
+describe("password change", () => {
+  it("replaces the password only when the current one matches", async () => {
+    const { owner } = await workspace();
+    const nextPassword = "NextPass123!ab";
+    await assert.rejects(() => changeAccountPassword({ userId: owner._id, currentPassword: "WrongPass123!ab", newPassword: nextPassword }), (error) => error instanceof ApiError && error.statusCode === 400);
+    await changeAccountPassword({ userId: owner._id, currentPassword: password, newPassword: nextPassword });
+    assert.equal(await loginAccount({ email: owner.email, password }), null);
+    const signedIn = await loginAccount({ email: owner.email, password: nextPassword });
+    assert.equal(String(signedIn.user._id), String(owner._id));
+  });
+});
+
+describe("facebook token", () => {
+  it("stores the token encrypted and still reads the original value", async () => {
+    const { agency } = await workspace();
+    const plain = "EAA-test-token-value";
+    const saved = await ApiCredential.create({ agency: agency._id, accessToken: plain, isConnected: true });
+    const raw = await ApiCredential.collection.findOne({ _id: saved._id });
+    assert.equal(raw.accessToken.startsWith(TOKEN_PREFIX), true);
+    assert.equal(raw.accessToken.includes(plain), false);
+    const loaded = await ApiCredential.findById(saved._id).select("+accessToken");
+    assert.equal(loaded.accessToken, plain);
+  });
+
+  it("encrypts a token that was saved as plain text", async () => {
+    const { agency } = await workspace();
+    const plain = "legacy-plain-token";
+    const inserted = await ApiCredential.collection.insertOne({ agency: agency._id, provider: "facebook", accessToken: plain, isConnected: true, adAccounts: [], createdAt: new Date(), updatedAt: new Date() });
+    const loaded = await ApiCredential.findById(inserted.insertedId).select("+accessToken");
+    assert.equal(loaded.accessToken, plain);
+    const raw = await ApiCredential.collection.findOne({ _id: inserted.insertedId });
+    assert.equal(raw.accessToken.startsWith(TOKEN_PREFIX), true);
+    assert.equal(raw.accessToken.includes(plain), false);
   });
 });
 

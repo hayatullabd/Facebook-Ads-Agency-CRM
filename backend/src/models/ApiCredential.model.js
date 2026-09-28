@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { openToken, sealToken, TOKEN_PREFIX } from "../services/tokenCipher.service.js";
 
 const adAccountSnapshotSchema = new mongoose.Schema(
   {
@@ -21,7 +22,7 @@ const apiCredentialSchema = new mongoose.Schema(
   {
     agency: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", required: true, unique: true, index: true },
     provider: { type: String, enum: ["facebook"], default: "facebook" },
-    accessToken: { type: String, default: "", select: false },
+    accessToken: { type: String, default: "", select: false, set: sealToken, get: openToken },
     defaultAdAccountId: { type: String, trim: true, default: "" },
     adAccounts: { type: [adAccountSnapshotSchema], default: [] },
     permissions: [{ type: String, trim: true }],
@@ -39,5 +40,22 @@ const apiCredentialSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+async function migratePlainFacebookToken(doc) {
+  if (!doc?._id) return;
+  const stored = doc._doc?.accessToken;
+  if (typeof stored !== "string" || !stored || stored.startsWith(TOKEN_PREFIX)) return;
+  const sealed = sealToken(stored);
+  doc.set("accessToken", sealed);
+  const native = doc.constructor.collection.collection || doc.constructor.collection;
+  await native.updateOne({ _id: doc._id, accessToken: stored }, { $set: { accessToken: sealed } });
+}
+
+apiCredentialSchema.post("find", async function migrateFoundTokens(docs) {
+  if (!Array.isArray(docs)) return;
+  for (const doc of docs) await migratePlainFacebookToken(doc);
+});
+
+apiCredentialSchema.post("findOne", migratePlainFacebookToken);
 
 export default mongoose.model("ApiCredential", apiCredentialSchema);

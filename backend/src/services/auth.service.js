@@ -162,3 +162,13 @@ export const loginAccount = async ({ email, password }) => {
   await user.save();
   return { user, token: signToken(user) };
 };
+
+export const changeAccountPassword = async ({ userId, currentPassword, newPassword }) => {
+  const passwordError = getPasswordPolicyError(newPassword);
+  if (passwordError) throw new ApiError(400, passwordError);
+  const user = await User.findById(userId).select("+password");
+  if (!user || !(await user.comparePassword(currentPassword))) throw new ApiError(400, "Current password is incorrect");
+  if (currentPassword === newPassword) throw new ApiError(400, "New password must be different from the current password");
+  user.password = newPassword;
+  await user.save();
+};

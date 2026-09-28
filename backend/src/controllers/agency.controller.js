@@ -1,6 +1,7 @@
 import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import { discoverFacebookAdAccounts, disconnectFacebookForAgency, getFacebookAccountsForAgency, getFacebookOverviewForAgency } from "../services/facebookOverview.service.js";
+import { sealToken } from "../services/tokenCipher.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -66,7 +67,7 @@ export const saveFacebookCredential = asyncHandler(async (req, res) => {
   try {
     credential = await ApiCredential.findOneAndUpdate(
       { agency: req.params.agencyId },
-      { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
+      { $set: { accessToken: sealToken(accessToken), defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
       { new: true, upsert: true, runValidators: true }
     ).select("-accessToken");
   } catch (error) {
