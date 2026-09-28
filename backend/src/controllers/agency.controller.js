@@ -63,7 +63,6 @@ export const saveFacebookCredential = asyncHandler(async (req, res) => {
   }
   const now = new Date();
   if (!process.env.FACEBOOK_GRAPH_VERSION?.trim()) throw new ApiError(500, "FACEBOOK_GRAPH_VERSION is not configured");
-  if (!process.env.FACEBOOK_USD_RATES?.trim()) throw new ApiError(500, "FACEBOOK_USD_RATES is not configured");
   const credential = await ApiCredential.findOneAndUpdate(
     { agency: req.params.agencyId },
     { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
@@ -87,5 +86,10 @@ export const getFacebookAccounts = asyncHandler(async (req, res) => {
 
 export const disconnectFacebook = asyncHandler(async (req, res) => {
   const result = await disconnectFacebookForAgency(req.params.agencyId, req.body.revokeRemote === true);
-  res.json(new ApiResponse(200, result, result.remoteRevoked ? "Facebook access revoked and disconnected" : "Facebook disconnected locally"));
+  const message = result.remoteRevoked
+    ? "Facebook access revoked and disconnected"
+    : result.remoteError
+      ? "Facebook disconnected locally, but Facebook did not confirm the revoke"
+      : "Facebook disconnected locally";
+  res.json(new ApiResponse(200, result, message));
 });

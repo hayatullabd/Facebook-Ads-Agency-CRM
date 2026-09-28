@@ -48,8 +48,16 @@ if (isProduction && clientUrls.length === 0) throw new Error("CLIENT_URL must in
 const facebookGraphVersion = process.env.FACEBOOK_GRAPH_VERSION?.trim() || "v20.0";
 if (!/^v\d+\.\d+$/.test(facebookGraphVersion)) throw new Error("FACEBOOK_GRAPH_VERSION must use the format v20.0");
 
+const DEFAULT_FACEBOOK_USD_RATES = {
+  USD: 1,
+  BDT: 0.0082,
+  INR: 0.012,
+  EUR: 1.09,
+};
+
 function parseFacebookUsdRates(value) {
-  if (!value?.trim()) return { USD: 1 };
+  const rates = { ...DEFAULT_FACEBOOK_USD_RATES };
+  if (!value?.trim()) return rates;
   let parsed;
   try {
     parsed = JSON.parse(value);
@@ -57,7 +65,6 @@ function parseFacebookUsdRates(value) {
     throw new Error("FACEBOOK_USD_RATES must be valid JSON");
   }
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("FACEBOOK_USD_RATES must be a JSON object");
-  const rates = { USD: 1 };
   for (const [currency, rate] of Object.entries(parsed)) {
     const code = currency.trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(code) || !Number.isFinite(Number(rate)) || Number(rate) <= 0) {

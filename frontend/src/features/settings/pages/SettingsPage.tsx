@@ -7,7 +7,7 @@ import { Card } from "../../shared/Card";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { TEAM_FEATURE_OPTIONS, TeamFeatureChecklist, teamFeatureLabel } from "../../users/TeamFeatureChecklist";
 import { createUser, updateUser } from "../../users/usersApi";
-import { getAgency, getFacebookOverview, saveAgencySettings, saveFacebookSettings } from "../settingsApi";
+import { disconnectFacebook, getAgency, getFacebookOverview, saveAgencySettings, saveFacebookSettings } from "../settingsApi";
 import { AgencyPaymentDetailsPanel } from "../../billing/AgencyPaymentDetails";
 
 type SettingsTab = "workspace" | "facebook" | "payments" | "team" | "activity";
@@ -100,6 +100,27 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh, platformRole, user 
     }
   };
 
+  const revokeFacebook = async () => {
+    if (!connection?.isConnected) return;
+    if (!window.confirm("Revoke Facebook access? AdFlow will delete the saved token and ask Facebook to remove this app's permissions. Saved campaign history stays.")) return;
+    setBusy("revoke");
+    setError("");
+    setMessage("");
+    try {
+      const result = await disconnectFacebook(agencyId, true);
+      const overview = await getFacebookOverview(agencyId);
+      setConnection(overview.connection);
+      setAccessToken("");
+      setAdAccount("");
+      await onWorkspaceRefresh();
+      setMessage(result.remoteRevoked ? "Facebook access revoked." : "Facebook token removed here. Facebook did not confirm the revoke, so remove the app in Business Manager if it still shows.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Facebook access could not be revoked");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const addMember = async (event: FormEvent) => {
     event.preventDefault();
     setBusy("member");
@@ -186,6 +207,7 @@ export function SettingsPage({ agencyId, onWorkspaceRefresh, platformRole, user 
         <span>{connection?.adAccountId || "No default account"}</span>
         <span>{connection?.accountCount ?? 0} accounts</span>
         <span>{connection?.lastVerifiedAt ? `Checked ${formatDate(connection.lastVerifiedAt)}` : "Not checked"}</span>
+        <button type="button" disabled={!connected || busy === "revoke"} className="ml-auto h-8 rounded border border-red-200 px-3 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50" onClick={() => { void revokeFacebook(); }}>{busy === "revoke" ? "Revoking..." : "Revoke access"}</button>
       </div>
     </section>}
 

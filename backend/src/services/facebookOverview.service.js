@@ -560,13 +560,14 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
   const credential = await ApiCredential.findOne({ agency: agencyId }).select("+accessToken");
   if (!credential) return { disconnected: true, remoteRevoked: false };
   let remoteRevoked = false;
+  let remoteError = "";
   if (revokeRemote && credential.accessToken) {
     try {
       await graphRequest("/me/permissions", credential.accessToken, "DELETE");
       remoteRevoked = true;
     } catch (error) {
-      if (error?.category !== "invalid-token") throw error;
-      remoteRevoked = true;
+      if (error?.category === "invalid-token") remoteRevoked = true;
+      else remoteError = error instanceof Error ? error.message : "Facebook did not confirm the revoke";
     }
   }
   credential.accessToken = "";
@@ -575,7 +576,7 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
   credential.tokenExpiresAt = null;
   credential.lastVerifiedAt = null;
   await credential.save();
-  return { disconnected: true, remoteRevoked };
+  return { disconnected: true, remoteRevoked, remoteError };
 }
 
 export async function getFacebookOverviewForAgency(agencyId, clientId = null) {

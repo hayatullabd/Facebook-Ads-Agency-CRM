@@ -12,4 +12,4 @@ export const getActiveFacebookSync = (agencyId: string) => apiRequest<FacebookSy
 export const getFacebookSyncJob = (agencyId: string, jobId: string) => apiRequest<FacebookSyncJob>(`/agency/${agencyId}/facebook-sync-jobs/${jobId}`);
 export const getFacebookSyncHistory = (agencyId: string, limit = 10) => apiRequest<FacebookSyncJob[]>(`/agency/${agencyId}/facebook-sync-jobs?limit=${limit}`);
 export const retryFacebookSyncAccount = (agencyId: string, jobId: string, accountId: string) => apiRequest<FacebookSyncJob>(`/agency/${agencyId}/facebook-sync-jobs/${jobId}/accounts/${accountId}/retry`, { method: "POST" });
-export const disconnectFacebook = (agencyId: string, revokeRemote = false) => apiRequest<{ disconnected: boolean; remoteRevoked: boolean }>(`/agency/${agencyId}/facebook`, { method: "DELETE", body: JSON.stringify({ revokeRemote }) });
+export const disconnectFacebook = (agencyId: string, revokeRemote = false) => apiRequest<{ disconnected: boolean; remoteRevoked: boolean; remoteError?: string }>(`/agency/${agencyId}/facebook`, { method: "DELETE", body: JSON.stringify({ revokeRemote }) });
