@@ -87,6 +87,7 @@ export interface FacebookOverview {
       resetAt: string | null;
     };
     currency: string;
+    spendByCurrency?: Record<string, number>;
     cpa: number;
   };
   recentCampaigns: Array<{

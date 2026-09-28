@@ -26,7 +26,7 @@ export type CampaignRangeInsight = {
     ctrAll: number;
     reach: number;
     impressions: number;
-    currency: "USD";
+    currency: string;
     delivery: string;
     since: string;
     until: string;

@@ -46,10 +46,10 @@ export function DashboardPage({ role, platformRole, features, featuresConfigured
     { label: "Active clients", value: String(activeClients.length), meta: `${clients.length} records`, icon: Users, tone: "bg-blue-50 text-blue-700", href: "/clients", feature: "clients" },
   ].filter((item) => canOpen(item.feature));
   const performance = overview ? [
-    { label: "Ad spend", value: formatMoney(overview.spend, fallbackCurrency) },
+    { label: "Ad spend", value: overview.spendByCurrency && Object.keys(overview.spendByCurrency).length ? Object.entries(overview.spendByCurrency).map(([code, amount]) => formatMoney(amount, code)).join(" · ") : formatMoney(overview.spend, overview.currency || fallbackCurrency) },
     { label: "Impressions", value: formatCount(overview.impressions) },
     { label: "Results", value: formatCount(overview.results) },
-    { label: "CPA", value: formatMoney(overview.cpa, fallbackCurrency) },
+    { label: "CPA", value: Object.keys(overview.spendByCurrency || {}).length > 1 ? "—" : formatMoney(overview.cpa, overview.currency || fallbackCurrency) },
   ] : [];
   const itemCount = pendingRequests.length + overdueInvoices.length + staleCampaigns.length;
 

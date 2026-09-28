@@ -77,9 +77,10 @@ export const getCampaignInsights = asyncHandler(async (req, res) => {
   const rows = campaigns.map((campaign) => {
     const insight = insightsByCampaign.get(`${campaign.facebookAdAccountId}:${campaign.facebookCampaignId}`);
     const liveStatus = deliveryByCampaign.get(`${campaign.facebookAdAccountId}:${campaign.facebookCampaignId}`);
+    const accountCurrency = String(accountCurrencies.get(campaign.facebookAdAccountId) || campaign.performance?.currency || campaign.budget?.currency || "USD").toUpperCase();
     const performance = insight || {
       actions: [], results: 0, resultMetric: "", landingPageViews: 0, spend: 0, amountSpent: 0,
-      costPerResult: 0, ctrAll: 0, reach: 0, impressions: 0, currency: "USD",
+      costPerResult: 0, ctrAll: 0, reach: 0, impressions: 0, currency: accountCurrency, sourceCurrency: accountCurrency,
     };
     return {
       ...campaign,
@@ -129,7 +130,8 @@ export const getCampaignInsights = asyncHandler(async (req, res) => {
         ctrAll: insight.ctrAll || 0,
         reach: insight.reach || 0,
         impressions: insight.impressions || 0,
-        currency: "USD",
+        currency: insight.currency || insight.sourceCurrency || "USD",
+        sourceCurrency: insight.sourceCurrency || insight.currency || "USD",
         delivery: liveStatus?.delivery || insight.effectiveStatus || "",
         since: req.query.since,
         until: req.query.until,
@@ -140,26 +142,28 @@ export const getCampaignInsights = asyncHandler(async (req, res) => {
     if (insightsByCampaign.has(key)) continue;
     const splitAt = key.lastIndexOf(":");
     const facebookCampaignId = key.slice(splitAt + 1);
+    const facebookAdAccountId = key.slice(0, splitAt);
     if (!facebookCampaignId || knownIds.has(facebookCampaignId)) continue;
+    const accountCurrency = String(accountCurrencies.get(facebookAdAccountId) || "USD").toUpperCase();
     extras.push({
       _id: `live-${facebookCampaignId}`,
       source: "facebook",
       liveOnly: true,
       name: liveStatus.name || "Facebook campaign",
       facebookCampaignId,
-      facebookAdAccountId: key.slice(0, splitAt),
+      facebookAdAccountId,
       platform: "facebook",
       objective: liveStatus.objective || "",
       facebookObjective: liveStatus.objective || "",
       status: liveStatus.status || "paused",
       effectiveStatus: liveStatus.effectiveStatus || "",
       facebookStatus: liveStatus.facebookStatus || "",
-      budget: { amount: null, type: null, currency: "USD" },
+      budget: { amount: null, type: null, currency: accountCurrency },
       startDate: liveStatus.startDate || null,
       endDate: liveStatus.endDate || null,
       performance: {
         actions: [], results: 0, resultMetric: liveStatus.resultMetric || "", landingPageViews: 0, spend: 0, amountSpent: 0,
-        costPerResult: 0, ctrAll: 0, reach: 0, impressions: 0, currency: "USD",
+        costPerResult: 0, ctrAll: 0, reach: 0, impressions: 0, currency: accountCurrency, sourceCurrency: accountCurrency,
         delivery: liveStatus.delivery || "",
         since: req.query.since,
         until: req.query.until,
@@ -201,7 +205,8 @@ export const getCampaignInsights = asyncHandler(async (req, res) => {
               actions: row.performance.actions,
               ctrAll: row.performance.ctrAll,
               costPerResult: row.performance.costPerResult,
-              currency: "USD",
+              currency: row.performance.currency || row.budget?.currency || "USD",
+              sourceCurrency: row.performance.sourceCurrency || row.performance.currency || row.budget?.currency || "USD",
               delivery: row.performance.delivery,
               usdConversionAvailable: true,
               lastSyncedAt: new Date(),
