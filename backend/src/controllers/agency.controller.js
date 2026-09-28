@@ -62,12 +62,17 @@ export const saveFacebookCredential = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Default Facebook ad account is not accessible with this token");
   }
   const now = new Date();
-  if (!process.env.FACEBOOK_GRAPH_VERSION?.trim()) throw new ApiError(500, "FACEBOOK_GRAPH_VERSION is not configured");
-  const credential = await ApiCredential.findOneAndUpdate(
-    { agency: req.params.agencyId },
-    { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
-    { new: true, upsert: true, runValidators: true }
-  ).select("-accessToken");
+  let credential;
+  try {
+    credential = await ApiCredential.findOneAndUpdate(
+      { agency: req.params.agencyId },
+      { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },
+      { new: true, upsert: true, runValidators: true }
+    ).select("-accessToken");
+  } catch (error) {
+    if (error?.name === "ValidationError") throw new ApiError(400, "Facebook ad accounts from this token could not be saved");
+    throw error;
+  }
 
   res.json(new ApiResponse(200, credential, "Facebook API settings saved"));
 });

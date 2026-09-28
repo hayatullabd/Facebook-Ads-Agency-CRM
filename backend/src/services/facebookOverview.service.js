@@ -286,7 +286,7 @@ function accountDto(account) {
     facebookAdAccountId: normalizeAdAccountId(account.facebookAdAccountId || account.id),
     accountId: String(account.accountId || account.account_id || ""),
     name: account.name || "",
-    accountStatus: account.accountStatus ?? account.account_status ?? null,
+    accountStatus: Number.isFinite(Number(account.accountStatus ?? account.account_status)) ? Number(account.accountStatus ?? account.account_status) : null,
     currency: account.currency || "",
     timezoneName: account.timezoneName || account.timezone_name || "",
     balance: account.balance == null ? null : number(account.balance),
@@ -403,7 +403,7 @@ export async function fetchFacebookAccountReport({ agencyId, since, until, clien
 export async function discoverFacebookAdAccounts(accessToken) {
   const discovered = await fetchAll(`/me/adaccounts?fields=${ACCOUNT_FIELDS}`, accessToken);
   const now = new Date();
-  return discovered.map((account) => accountDto({ ...account, lastSeenAt: now })).filter((account) => account.facebookAdAccountId);
+  return discovered.map((account) => accountDto({ ...account, lastSeenAt: now })).filter((account) => account.facebookAdAccountId && account.accountId);
 }
 
 export async function syncFacebookAccount(agencyId, account, accessToken) {
