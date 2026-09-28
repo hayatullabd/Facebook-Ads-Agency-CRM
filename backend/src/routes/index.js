@@ -13,15 +13,16 @@ import userRoutes from "./user.routes.js";
 import commentRoutes from "./comment.routes.js";
 import attachmentRoutes from "./attachment.routes.js";
 import approvalRoutes from "./approval.routes.js";
-import accessRoutes from "./access.routes.js";
+import subscriptionRoutes from "./subscription.routes.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { featureAccessMiddleware } from "../middlewares/featureAccess.middleware.js";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 router.use(authMiddleware);
+router.use(featureAccessMiddleware);
 router.use("/approvals", approvalRoutes);
-router.use("/access", accessRoutes);
 router.use("/agency", agencyRoutes);
 router.use("/users", userRoutes);
 router.use("/clients", clientRoutes);
@@ -33,7 +34,7 @@ router.use("/invoices", invoiceRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/updates", updateRoutes);
 router.use("/logs", activityLogRoutes);
-router.use("/audit-logs", activityLogRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/subscriptions", subscriptionRoutes);
 
 export default router;

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { PLATFORM_ROLES, ROLES, USER_STATUSES } from "../constants/roles.js";
+import { FEATURE_KEYS } from "../utils/accessControl.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -65,11 +66,20 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    featuresConfigured: {
+      type: Boolean,
+      default: false,
+    },
+    features: {
+      type: [{ type: String, enum: Object.values(FEATURE_KEYS) }],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ agency: 1, role: 1, isActive: 1 });
 
 userSchema.pre("save", async function hashPassword(next) {
   if (!this.isModified("password")) return next();

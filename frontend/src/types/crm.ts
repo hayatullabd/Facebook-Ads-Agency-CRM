@@ -1,9 +1,9 @@
-export type Screen = "dashboard" | "settings" | "requests" | "campaigns" | "adaccounts" | "billing" | "payment_details" | "clients" | "planner" | "updates" | "users";
+export type Screen = "dashboard" | "settings" | "requests" | "campaigns" | "adaccounts" | "billing" | "payment_details" | "subscriptions" | "clients" | "planner" | "updates" | "users";
 export type Role = "owner" | "client" | "team" | "admin" | "moderator";
 export type AdPlatform = "facebook" | "instagram" | "both";
-export type AdRequestPlatform = "facebook" | "instagram" | "youtube" | "google";
+export type AdRequestPlatform = "facebook" | "whatsapp" | "google" | "youtube" | "instagram";
 export type RequestStatus = "Under Review" | "Approved" | "Live" | "Rejected";
-export type InvoiceStatus = "Unpaid" | "Paid" | "Overdue";
+export type InvoiceStatus = "Unpaid" | "Partial" | "Paid" | "Overdue";
 
 export interface AgencyProfile {
   _id: string;
@@ -121,6 +121,7 @@ export interface Client {
   totalSpend: number;
   activeCampaigns: number;
   billingRate: number;
+  billingCurrency?: "BDT" | "USD" | "INR";
   color: string;
   facebookAdAccountIds?: string[];
 }
@@ -134,6 +135,8 @@ export interface UserAccount {
   role: Role;
   avatarColor: string;
   isActive: boolean;
+  features?: string[];
+  featuresConfigured?: boolean;
   createdAt: string;
 }
 
@@ -143,8 +146,8 @@ export interface AdRequest {
   client?: Client;
   pageName: string;
   platform: AdRequestPlatform | "both" | AdRequestPlatform[];
-  objectiveGroup: string;
-  objective: string;
+  objectiveGroup: string | string[];
+  objective: string | string[];
   budget: { amount: number; type: "daily" | "lifetime"; currency: string };
   durationDays: number;
   notes: string;
@@ -218,12 +221,15 @@ export interface Invoice {
   durationDays: number;
   rate: number;
   amount: number;
+  paidAmount?: number;
   currency: string;
   status: InvoiceStatus;
   dueDate: string;
   paidAt?: string;
   paymentMethod?: string;
   notes?: string;
+  discountAmount?: number;
+  correctionAmount?: number;
   createdAt: string;
 }
 

@@ -63,9 +63,23 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    correctionAmount: {
+      type: Number,
+      default: 0,
+    },
     amount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    paidAmount: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     currency: {
@@ -75,7 +89,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Unpaid", "Paid", "Overdue"],
+      enum: ["Unpaid", "Partial", "Paid", "Overdue"],
       default: "Unpaid",
       index: true,
     },
@@ -89,7 +103,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "bank", "bkash", "nagad", "stripe", "manual", ""],
+      enum: ["cash", "bank", "bkash", "nagad", "stripe", "manual", "advance", ""],
       default: "",
     },
     notes: {
@@ -103,5 +117,6 @@ const invoiceSchema = new mongoose.Schema(
 
 invoiceSchema.index({ agency: 1, invoiceNumber: 1 }, { unique: true });
 invoiceSchema.index({ agency: 1, status: 1, dueDate: 1 });
+invoiceSchema.index({ agency: 1, client: 1, createdAt: -1 });
 
 export default mongoose.model("Invoice", invoiceSchema);

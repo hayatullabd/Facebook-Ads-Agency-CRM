@@ -3,10 +3,11 @@ import { env } from "./config/env.js";
 import app, { startServer } from "./app.js";
 import { runtimeState } from "./services/runtimeState.service.js";
 import { stopFacebookSyncWorker } from "./services/facebookSyncJob.service.js";
+import { stopSubscriptionRenewalJob } from "./jobs/subscriptionRenewal.job.js";
 
 let server;
 let shutdownPromise;
-
+const isPortInUseError = (error) => error?.code === "EADDRINUSE";
 const shutdown = (reason, exitCode) => {
   if (shutdownPromise) return shutdownPromise;
 
@@ -26,6 +27,7 @@ const shutdown = (reason, exitCode) => {
         await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
       }
       await stopFacebookSyncWorker();
+      await stopSubscriptionRenewalJob();
       await mongoose.disconnect();
       clearTimeout(deadline);
       process.exit(exitCode);
@@ -41,9 +43,16 @@ const shutdown = (reason, exitCode) => {
 
 const bootstrap = async () => {
   await startServer();
-  server = app.listen(env.port, () => {
-    console.log(`Server running on port ${env.port}`);
-  });
+  try {
+    server = app.listen(env.port, () => {
+      console.log(`Server running on port ${env.port}`);
+    });
+  } catch (error) {
+    if (isPortInUseError(error)) {
+      throw new Error(`Port ${env.port} is already in use. Stop the existing process or set PORT to a free port.`);
+    }
+    throw error;
+  }
 };
 
 process.on("SIGTERM", () => void shutdown("SIGTERM", 0));
@@ -63,3 +72,4 @@ bootstrap().catch(async (error) => {
   await mongoose.disconnect().catch(() => {});
   process.exit(1);
 });
+

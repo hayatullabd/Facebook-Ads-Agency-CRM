@@ -77,6 +77,11 @@ const clientSchema = new mongoose.Schema(
       min: 1,
       default: 110,
     },
+    billingCurrency: {
+      type: String,
+      enum: ["BDT", "USD", "INR"],
+      default: "BDT",
+    },
     color: {
       type: String,
       default: "bg-blue-600",
@@ -97,6 +102,7 @@ const clientSchema = new mongoose.Schema(
 );
 
 clientSchema.index({ agency: 1, email: 1 }, { unique: true });
+clientSchema.index({ agency: 1, status: 1 });
 clientSchema.index(
   { agency: 1, facebookAdAccountIds: 1 },
   { unique: true, partialFilterExpression: { "facebookAdAccountIds.0": { $exists: true } } }

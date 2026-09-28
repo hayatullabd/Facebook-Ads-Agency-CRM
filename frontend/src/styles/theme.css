@@ -1,8 +1,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 14px;
-  --background: #f0f4f8;
+  --font-size: 16px;
+  --background: #f4f7fb;
   --foreground: #1f2937;
   --card: #ffffff;
   --card-foreground: #1f2937;
@@ -30,7 +30,7 @@
   --chart-3: #198754;
   --chart-4: #ffc107;
   --chart-5: #6f42c1;
-  --radius: 0.25rem;
+  --radius: 0.75rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #1e40af;
   --sidebar-primary: #1e40af;

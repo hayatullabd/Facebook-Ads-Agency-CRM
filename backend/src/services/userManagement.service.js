@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { getPasswordPolicyError } from "./passwordPolicy.service.js";
 import { serializePublicUser } from "../utils/serializePublicUser.js";
 import { validateClientAndAdRequest } from "./referenceValidation.service.js";
+import { sanitizeTeamFeatures } from "../utils/accessControl.js";
 
 const normalizeId = (value) => (value?._id ? String(value._id) : String(value));
 const canManageRole = (actor, targetRole, targetClient) => {
@@ -13,7 +14,7 @@ const canManageRole = (actor, targetRole, targetClient) => {
   return false;
 };
 
-export const createManagedUser = async ({ agencyId, actor, name, email, password, role, client }) => {
+export const createManagedUser = async ({ agencyId, actor, name, email, password, role, client, features }) => {
   const passwordError = getPasswordPolicyError(password);
   if (passwordError) throw new ApiError(400, passwordError);
   if (!canManageRole(actor, role, client)) throw new ApiError(403, "You do not have permission to create this user");
@@ -22,7 +23,17 @@ export const createManagedUser = async ({ agencyId, actor, name, email, password
     if (!client) throw new ApiError(400, "Client is required");
   }
   try {
-    return await User.create({ agency: agencyId, client: ["client", "moderator"].includes(role) ? client : null, name: name.trim(), email: email.trim().toLowerCase(), password, role, avatarColor: role === "team" ? "bg-emerald-600" : role === "moderator" ? "bg-amber-600" : "bg-violet-600" });
+    return await User.create({
+      agency: agencyId,
+      client: ["client", "moderator"].includes(role) ? client : null,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      role,
+      avatarColor: role === "team" ? "bg-emerald-600" : role === "moderator" ? "bg-amber-600" : "bg-violet-600",
+      featuresConfigured: role === "team",
+      features: role === "team" ? sanitizeTeamFeatures(features) : [],
+    });
   } catch (error) {
     if (error?.code === 11000) throw new ApiError(409, "An account with this email already exists");
     throw error;
@@ -58,6 +69,16 @@ export const updateManagedUser = async ({ agencyId, actor, userId, fields }) => 
     await validateClientAndAdRequest({ agencyId, clientId: nextClient, required: false });
   }
   const updates = { ...fields, client: ["client", "moderator"].includes(nextRole) ? nextClient : null };
+  if (nextRole === "team" && Array.isArray(fields.features)) {
+    if (!["owner", "admin"].includes(actor.role)) throw new ApiError(403, "You do not have permission to change feature access");
+    updates.features = sanitizeTeamFeatures(fields.features);
+    updates.featuresConfigured = true;
+  } else if (nextRole !== "team") {
+    updates.features = [];
+    updates.featuresConfigured = false;
+  } else {
+    delete updates.features;
+  }
   if (updates.email !== undefined) {
     updates.email = updates.email.trim().toLowerCase();
     const duplicate = await User.exists({ email: updates.email, _id: { $ne: target._id } });

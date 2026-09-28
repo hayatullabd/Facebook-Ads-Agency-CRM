@@ -1,7 +1,5 @@
-import type { ReactNode } from "react";
 import { CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 import { Card } from "./Card";
-import { Button } from "./Button";
 
 export type FeaturePanelItem = {
   key: string;
@@ -14,12 +12,10 @@ export function FeaturePanel({
   title,
   subtitle,
   items,
-  actions,
 }: {
   title: string;
   subtitle: string;
   items: FeaturePanelItem[];
-  actions?: ReactNode;
 }) {
   return (
     <Card className="crm-feature-panel space-y-3 p-3 sm:p-4">
@@ -32,7 +28,6 @@ export function FeaturePanel({
             <p className="crm-page-subtitle">{subtitle}</p>
           </div>
         </div>
-        {actions}
       </div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
@@ -51,8 +46,4 @@ export function FeaturePanel({
       </div>
     </Card>
   );
-}
-
-export function FeatureToggleButton({ enabled, label, onClick }: { enabled: boolean; label: string; onClick: () => void }) {
-  return <Button onClick={onClick}>{enabled ? `Disable ${label}` : `Enable ${label}`}</Button>;
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   approveUser,
   approveWorkspace,
+  createWorkspace,
   getPendingUsers,
   getPendingWorkspaces,
   rejectUser,
@@ -15,11 +16,13 @@ import { platformRoleMiddleware } from "../middlewares/platformRole.middleware.j
 import { roleMiddleware } from "../middlewares/role.middleware.js";
 import { validateObjectIdParam } from "../validators/common.validator.js";
 import { validateDecision, validateEmptyDecision, validateUserApproval, validateUserDecision } from "../validators/approval.validator.js";
+import { validateWorkspaceCreate } from "../validators/auth.validator.js";
 
 const router = Router();
 router.param("agencyId", validateObjectIdParam);
 router.param("userId", validateObjectIdParam);
 
+router.post("/workspaces", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateWorkspaceCreate, createWorkspace);
 router.get("/workspaces", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), getPendingWorkspaces);
 router.patch("/workspaces/:agencyId", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateDecision, reviewWorkspace);
 router.post("/workspaces/:agencyId/approve", platformRoleMiddleware(PLATFORM_ROLES.ADMIN), validateEmptyDecision, approveWorkspace);

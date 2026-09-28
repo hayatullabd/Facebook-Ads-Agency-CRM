@@ -6,7 +6,7 @@ import { validateClientAndAdRequest } from "../services/referenceValidation.serv
 export const getUpdates = asyncHandler(async (req, res) => {
   const query = { agency: req.params.agencyId };
   if (["client", "moderator"].includes(req.user.role)) query.client = req.user.client;
-  const updates = await ClientUpdate.find(query).populate("client adRequest sentBy").sort({ createdAt: -1 });
+  const updates = await ClientUpdate.find(query).populate("client", "name").populate("adRequest", "requestNumber").populate("sentBy", "name").sort({ createdAt: -1 }).limit(1000).lean();
   res.json(new ApiResponse(200, updates));
 });
 

@@ -26,6 +26,7 @@ export function Topbar({ title, role, userName, userId, onMenu, onLogout, onNavi
   const overdueInvoices = invoices.filter((item) => item.status === "Overdue");
   const staleCampaigns = campaigns.filter((item) => item.isStale || item.status === "failed");
   const notificationCount = unreadUpdates.length + pendingRequests.length + overdueInvoices.length + staleCampaigns.length;
+  const initials = userName.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "A";
   const searchItems = useMemo<SearchItem[]>(() => [
     ...clients.map((item) => ({ id: item._id, title: item.name, meta: `${item.contactName || "Client"} · ${item.status}`, kind: "Client", screen: "clients" as Screen })),
     ...requests.map((item) => ({ id: item._id, title: item.requestNumber, meta: `${item.client?.name || item.pageName} · ${item.status}`, kind: "Request", screen: "requests" as Screen })),
@@ -41,22 +42,64 @@ export function Topbar({ title, role, userName, userId, onMenu, onLogout, onNavi
   }, []);
   const go = (screen: Screen) => { onNavigate(screen); setSearchOpen(false); setNotificationsOpen(false); setQuery(""); };
 
-  return <header className="crm-topbar sticky top-0 z-30 flex min-h-14 flex-col gap-2 border-b border-[#d1d5db] bg-white px-3 py-2 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
-    <div className="flex min-w-0 items-center gap-2.5">
-      <button className="crm-icon-button lg:hidden" onClick={onMenu} aria-label="Open navigation" title="Open navigation"><Menu className="size-4" /></button>
-      <div className="min-w-0">
-        <h1 className="truncate text-sm font-semibold text-slate-800 sm:text-base">{title}</h1>
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 sm:text-xs">
-          <span className="truncate">{userName}</span>
-          <span className="hidden sm:inline">•</span>
-          <span className="hidden sm:inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-semibold uppercase text-blue-700">{role}</span>
+  return (
+    <header className="crm-topbar sticky top-0 z-30 flex min-h-16 flex-col gap-3 border-b border-slate-200/80 bg-white/90 px-3 py-3 backdrop-blur sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      <div className="flex min-w-0 items-center gap-3">
+        <button className="inline-flex size-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 lg:hidden" onClick={onMenu} aria-label="Open navigation" title="Open navigation"><Menu className="size-4" /></button>
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-semibold tracking-tight text-slate-900">{title}</h1>
+          <p className="truncate text-xs text-slate-500">{userName}</p>
         </div>
       </div>
-    </div>
-    <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
-      <div className="relative hidden flex-1 md:block lg:w-60 lg:flex-none"><div className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/10"><Search className="size-4" /><input value={query} onFocus={() => setSearchOpen(true)} onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }} className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400" placeholder="Search workspace..." aria-label="Search workspace" /><kbd className="hidden items-center gap-0.5 rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500 lg:inline-flex"><Command className="size-3" />K</kbd></div>{searchOpen && <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">{query ? results.length ? <div className="p-1">{results.map((item) => <button key={`${item.kind}-${item.id}`} onClick={() => go(item.screen)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50"><div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[10px] font-semibold text-blue-700">{item.kind.slice(0, 1)}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-800">{item.title}</p><p className="truncate text-[11px] text-slate-500">{item.meta}</p></div><ChevronRight className="size-3.5 text-slate-400" /></button>)}</div> : <div className="p-5 text-center text-xs text-slate-500">No matching records found.</div> : <div className="p-4"><p className="text-xs font-semibold text-slate-700">Search everything</p><p className="mt-1 text-[11px] leading-5 text-slate-500">Find clients, requests, campaigns, and invoices from one place.</p></div>}</div>}</div>
-      <div className="relative ml-auto"><button className={`crm-icon-button relative ${notificationsOpen ? "border-blue-300 text-blue-700" : ""}`} onClick={() => { setNotificationsOpen((value) => !value); setSearchOpen(false); }} aria-label={`Notifications${notificationCount ? `, ${notificationCount} items` : ""}`} title="Notifications"><Bell className="size-4" />{notificationCount > 0 && <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-bold text-slate-950">{notificationCount > 9 ? "9+" : notificationCount}</span>}</button>{notificationsOpen && <div className="absolute right-0 top-11 z-50 w-[calc(100vw-1.5rem)] max-w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 sm:w-80"><div className="flex items-center justify-between border-b border-slate-200 px-4 py-3"><div><p className="text-sm font-semibold text-slate-800">Needs attention</p><p className="text-[11px] text-slate-500">Your operational follow-up queue</p></div><button onClick={() => setNotificationsOpen(false)} aria-label="Close notifications" className="text-slate-500 hover:text-slate-700"><X className="size-4" /></button></div><div className="max-h-80 overflow-y-auto p-2">{pendingRequests.length > 0 && <button onClick={() => go("requests")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-8 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><FileText className="size-4" /></div><div><p className="text-xs font-semibold text-slate-800">{pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""} awaiting review</p><p className="mt-0.5 text-[11px] text-slate-500">Open the approval queue</p></div></button>}{overdueInvoices.length > 0 && <button onClick={() => go("billing")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-8 items-center justify-center rounded-lg bg-rose-50 text-rose-700"><WalletCards className="size-4" /></div><div><p className="text-xs font-semibold text-slate-800">{overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}</p><p className="mt-0.5 text-[11px] text-slate-500">Review billing follow-ups</p></div></button>}{(staleCampaigns.length > 0 || unreadUpdates.length > 0) && <button onClick={() => go(staleCampaigns.length > 0 ? "campaigns" : "updates")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><RefreshCw className="size-4" /></div><div><p className="text-xs font-semibold text-slate-800">{staleCampaigns.length + unreadUpdates.length} workspace update{staleCampaigns.length + unreadUpdates.length !== 1 ? "s" : ""}</p><p className="mt-0.5 text-[11px] text-slate-500">Sync or client communication needs attention</p></div></button>}{notificationCount === 0 && <div className="p-5 text-center text-xs text-slate-500">You are all caught up.</div>}</div></div>}</div>
-      <button onClick={onLogout} className="inline-flex h-8 items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600" title="Log out"><LogOut className="size-3.5" /><span className="hidden sm:inline">Logout</span></button>
-    </div>
-  </header>;
+      <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
+        <div className="relative min-w-0 flex-1 lg:w-80 lg:flex-none">
+          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-slate-500 transition focus-within:border-blue-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-500/10">
+            <Search className="size-4" />
+            <input value={query} onFocus={() => setSearchOpen(true)} onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" placeholder="Search clients, campaigns, invoices" aria-label="Search workspace" />
+            <kbd className="hidden items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-slate-400 lg:inline-flex"><Command className="size-3" />K</kbd>
+          </div>
+          {searchOpen && (
+            <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-200/80 sm:left-auto sm:w-80">
+              {query ? results.length ? (
+                <div className="p-1.5">{results.map((item) => (
+                  <button key={`${item.kind}-${item.id}`} onClick={() => go(item.screen)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-50">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-semibold text-blue-700">{item.kind.slice(0, 1)}</div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-800">{item.title}</p><p className="truncate text-xs text-slate-500">{item.meta}</p></div>
+                    <ChevronRight className="size-3.5 text-slate-400" />
+                  </button>
+                ))}</div>
+              ) : <div className="p-5 text-center text-sm text-slate-500">No matching records found.</div> : (
+                <div className="p-4"><p className="text-sm font-semibold text-slate-800">Search the workspace</p><p className="mt-1 text-xs leading-5 text-slate-500">Find clients, requests, campaigns, and invoices from one place.</p></div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="relative ml-auto flex items-center gap-2">
+          <button className={`relative inline-flex size-10 items-center justify-center rounded-xl border bg-white text-slate-600 transition hover:bg-slate-50 ${notificationsOpen ? "border-blue-300 text-blue-700" : "border-slate-200"}`} onClick={() => { setNotificationsOpen((value) => !value); setSearchOpen(false); }} aria-label={`Notifications${notificationCount ? `, ${notificationCount} items` : ""}`} title="Notifications">
+            <Bell className="size-4" />
+            {notificationCount > 0 && <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">{notificationCount > 9 ? "9+" : notificationCount}</span>}
+          </button>
+          {notificationsOpen && (
+            <div className="absolute right-0 top-12 z-50 w-[calc(100vw-1.5rem)] max-w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-200/80 sm:w-80">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                <div><p className="text-sm font-semibold text-slate-900">Needs attention</p><p className="text-xs text-slate-500">Follow-ups waiting on you</p></div>
+                <button onClick={() => setNotificationsOpen(false)} aria-label="Close notifications" className="text-slate-400 hover:text-slate-700"><X className="size-4" /></button>
+              </div>
+              <div className="max-h-80 overflow-y-auto p-2">
+                {pendingRequests.length > 0 && <button onClick={() => go("requests")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700"><FileText className="size-4" /></div><div><p className="text-sm font-medium text-slate-800">{pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""} awaiting review</p><p className="mt-0.5 text-xs text-slate-500">Open the approval queue</p></div></button>}
+                {overdueInvoices.length > 0 && <button onClick={() => go("billing")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-9 items-center justify-center rounded-lg bg-rose-50 text-rose-700"><WalletCards className="size-4" /></div><div><p className="text-sm font-medium text-slate-800">{overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}</p><p className="mt-0.5 text-xs text-slate-500">Review billing follow-ups</p></div></button>}
+                {(staleCampaigns.length > 0 || unreadUpdates.length > 0) && <button onClick={() => go(staleCampaigns.length > 0 ? "campaigns" : "updates")} className="flex w-full items-center gap-3 rounded-lg p-3 text-left hover:bg-slate-50"><div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700"><RefreshCw className="size-4" /></div><div><p className="text-sm font-medium text-slate-800">{staleCampaigns.length + unreadUpdates.length} workspace update{staleCampaigns.length + unreadUpdates.length !== 1 ? "s" : ""}</p><p className="mt-0.5 text-xs text-slate-500">Sync or client communication needs attention</p></div></button>}
+                {notificationCount === 0 && <div className="p-5 text-center text-sm text-slate-500">You are all caught up.</div>}
+              </div>
+            </div>
+          )}
+          <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-3 sm:flex">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-xs font-semibold text-white">{initials}</span>
+            <span className="text-xs font-medium capitalize text-slate-600">{role}</span>
+          </div>
+          <button onClick={onLogout} className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600" title="Log out"><LogOut className="size-4" /><span className="hidden sm:inline">Logout</span></button>
+        </div>
+      </div>
+    </header>
+  );
 }

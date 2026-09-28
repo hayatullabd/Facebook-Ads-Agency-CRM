@@ -9,7 +9,7 @@ export const getUsers = asyncHandler(async (req, res) => {
     query.client = req.user.client;
     query.role = { $in: ["client", "moderator"] };
   }
-  const users = await User.find(query).populate("client", "name email").sort({ createdAt: -1 });
+  const users = await User.find(query).populate("client", "name email").sort({ createdAt: -1 }).limit(3000).lean();
   res.json(new ApiResponse(200, users.map(serializePublicUser)));
 });
 

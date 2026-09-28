@@ -11,9 +11,12 @@ const paymentTransactionSchema = new mongoose.Schema({
   method: { type: String, enum: ["cash", "bank", "bkash", "nagad", "stripe", "manual"], default: "manual" },
   reference: { type: String, trim: true, default: "", maxlength: 160 },
   description: { type: String, trim: true, default: "", maxlength: 1000 },
+  screenshot: { type: String, default: "", maxlength: 1500000 },
+  hasScreenshot: { type: Boolean, default: false },
   transactionDate: { type: Date, default: Date.now, index: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: true });
 
 paymentTransactionSchema.index({ agency: 1, account: 1, transactionDate: -1 });
+paymentTransactionSchema.index({ agency: 1, client: 1, transactionDate: -1 });
 export default mongoose.model("PaymentTransaction", paymentTransactionSchema);

@@ -1,24 +1,10 @@
-import { registerAccount, loginAccount } from "../services/auth.service.js";
+import { loginAccount } from "../services/auth.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { serializePublicUser } from "../utils/serializePublicUser.js";
 
-export const register = asyncHandler(async (req, res) => {
-  const result = await registerAccount(req.body);
-  if (result.passwordError) return res.status(400).json({ success: false, message: result.passwordError });
-  if (result.duplicateError) return res.status(409).json({ success: false, message: result.duplicateError });
-  if (result.pending) {
-    return res.status(202).json(new ApiResponse(202, {
-      status: "pending",
-      user: serializePublicUser(result.user),
-      agency: result.agency,
-    }, "Registration submitted for approval"));
-  }
-  res.status(201).json(new ApiResponse(201, {
-    user: serializePublicUser(result.user),
-    agency: result.agency,
-    token: result.token,
-  }, "Account created"));
+export const register = asyncHandler(async (_req, res) => {
+  res.status(403).json({ success: false, message: "Public signup is closed" });
 });
 
 export const login = asyncHandler(async (req, res) => {

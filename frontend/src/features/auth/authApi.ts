@@ -8,6 +8,9 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  platformRole?: "user" | "admin";
+  features?: string[];
+  featuresConfigured?: boolean;
 }
 
 export interface AuthResponse {
@@ -29,7 +32,7 @@ export interface PendingRegistrationResponse {
 export type RegistrationResponse = AuthResponse | PendingRegistrationResponse;
 export type RegistrationMode = "create" | "join";
 
-const roles: Role[] = ["admin", "team", "client", "moderator"];
+const roles: Role[] = ["owner", "admin", "team", "client", "moderator"];
 
 const isAuthUser = (value: unknown): value is AuthUser => {
   if (!value || typeof value !== "object") return false;
@@ -39,12 +42,15 @@ const isAuthUser = (value: unknown): value is AuthUser => {
     && typeof user.name === "string"
     && typeof user.email === "string"
     && roles.includes(user.role as Role)
-    && (user.client === undefined || user.client === null || typeof user.client === "string");
+    && (user.platformRole === undefined || user.platformRole === "user" || user.platformRole === "admin")
+    && (user.client === undefined || user.client === null || typeof user.client === "string")
+    && (user.features === undefined || (Array.isArray(user.features) && user.features.every((item) => typeof item === "string")))
+    && (user.featuresConfigured === undefined || typeof user.featuresConfigured === "boolean");
 };
 
 export const isAuthResponse = (response: RegistrationResponse): response is AuthResponse => "token" in response;
 
-export const login = (payload: { email: string; password: string }) => apiRequest<AuthResponse>("/auth/login", {
+export const login = (payload: { email: string; password: string; portalRole?: string }) => apiRequest<AuthResponse>("/auth/login", {
   method: "POST",
   body: JSON.stringify(payload),
 });

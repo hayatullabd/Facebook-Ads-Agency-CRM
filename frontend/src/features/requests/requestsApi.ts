@@ -5,7 +5,7 @@ export interface AdRequestPayload {
   client?: string;
   pageName: string;
   platform: AdRequestPlatform[];
-  objectiveGroup: string;
+  objectiveGroup: string[];
   objective: string;
   budget: { amount: number; type: "daily" | "lifetime"; currency: "USD" | "BDT" | "INR" };
   durationDays: number;

@@ -22,7 +22,9 @@ export const getAdRequests = asyncHandler(async (req, res) => {
     .populate({ path: "client", select: "name contactName" })
     .populate({ path: "submittedBy", select: "name" })
     .populate({ path: "reviewedBy", select: "name" })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .limit(3000)
+    .lean();
   res.json(new ApiResponse(200, requests));
 });
 

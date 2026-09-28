@@ -1,12 +1,14 @@
 import { Router } from "express";
-import { disconnectFacebook, getAgency, getFacebookAccounts, getFacebookOverview, saveFacebookCredential, updateAgency } from "../controllers/agency.controller.js";
+import { disconnectFacebook, getAgency, getAgencyPaymentDetails, getFacebookAccounts, getFacebookOverview, saveAgencyPaymentDetails, saveFacebookCredential, updateAgency } from "../controllers/agency.controller.js";
 import { createFacebookSyncJob, getActiveFacebookSync, getFacebookSyncDetail, getFacebookSyncHistory, retryFacebookSyncAccount } from "../controllers/facebookSyncJob.controller.js";
 import { agencyScopeMiddleware } from "../middlewares/agencyScope.middleware.js";
 import { roleMiddleware } from "../middlewares/role.middleware.js";
-import { validateAgencyUpdate, validateFacebookCredential, validateFacebookDisconnect } from "../validators/agency.validator.js";
+import { validateAgencyPaymentDetails, validateAgencyUpdate, validateFacebookCredential, validateFacebookDisconnect } from "../validators/agency.validator.js";
 
 const router = Router({ mergeParams: true });
 router.use("/:agencyId", agencyScopeMiddleware);
+router.get("/:agencyId/payment-details", getAgencyPaymentDetails);
+router.put("/:agencyId/payment-details", roleMiddleware("admin", "team"), validateAgencyPaymentDetails, saveAgencyPaymentDetails);
 router.get("/:agencyId", roleMiddleware("admin"), getAgency);
 router.get("/:agencyId/facebook-overview", getFacebookOverview);
 router.get("/:agencyId/facebook-accounts", getFacebookAccounts);

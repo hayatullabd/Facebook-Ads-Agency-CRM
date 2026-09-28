@@ -7,18 +7,7 @@ import User from "../models/User.model.js";
 import AdRequest from "../models/AdRequest.model.js";
 import { ApiError } from "../utils/ApiError.js";
 export async function getClientCampaignVisibility(agencyId, clientId) {
-  const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("facebookAdAccountIds");
-  const assignedAccounts = client?.facebookAdAccountIds || [];
-  return {
-    agency: agencyId,
-    $or: [
-      { client: clientId },
-      {
-        facebookAdAccountId: { $in: assignedAccounts },
-        client: { $in: [null, clientId] },
-      },
-    ],
-  };
+  return { agency: agencyId, client: clientId };
 }
 
 export async function setClientAdAccountAssignment({ agencyId, clientId, facebookAdAccountId, assigned }) {
@@ -87,7 +76,34 @@ export async function setCampaignClientAssignment({ agencyId, campaignId, client
     throw new ApiError(400, "Only Facebook campaigns support client assignment mapping");
   }
 
+  if (campaign.adRequest) {
+    const linked = await AdRequest.findOne({ _id: campaign.adRequest, agency: agencyId }).select("client");
+    if (!clientId || !linked || String(linked.client) !== String(clientId)) campaign.adRequest = null;
+  }
   campaign.client = clientId || null;
+  await campaign.save();
+  return campaign.populate("client adRequest");
+}
+
+export async function setCampaignRequestAssignment({ agencyId, campaignId, adRequestId }) {
+  const campaign = await Campaign.findOne({ _id: campaignId, agency: agencyId });
+  if (!campaign) throw new ApiError(404, "Campaign not found");
+  if (campaign.source !== "facebook") {
+    throw new ApiError(400, "Only Facebook campaigns can be linked to an ad request");
+  }
+  if (!adRequestId) {
+    campaign.adRequest = null;
+    campaign.client = null;
+    await campaign.save();
+    return campaign.populate("client adRequest");
+  }
+  const request = await AdRequest.findOne({ _id: adRequestId, agency: agencyId }).select("client");
+  if (!request) throw new ApiError(404, "Ad request not found");
+  if (campaign.client && String(campaign.client) !== String(request.client)) {
+    throw new ApiError(409, "This request belongs to a different client");
+  }
+  campaign.adRequest = request._id;
+  if (!campaign.client) campaign.client = request.client;
   await campaign.save();
   return campaign.populate("client adRequest");
 }
@@ -96,7 +112,7 @@ export async function deleteClientAndDetachFacebookCampaigns(agencyId, clientId)
   const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("_id");
   if (!client) throw new ApiError(404, "Client not found");
   const [users, requests, campaigns, invoices, updates] = await Promise.all([
-    User.exists({ agency: agencyId, client: clientId }),
+    User.exists({ agency: agencyId, client: clientId, role: { $ne: "client" } }),
     AdRequest.exists({ agency: agencyId, client: clientId }),
     Campaign.exists({ agency: agencyId, client: clientId, source: { $ne: "facebook" } }),
     Invoice.exists({ agency: agencyId, client: clientId }),
@@ -109,5 +125,6 @@ export async function deleteClientAndDetachFacebookCampaigns(agencyId, clientId)
     { agency: agencyId, client: clientId, source: "facebook" },
     { $set: { client: null } }
   );
+  await User.deleteMany({ agency: agencyId, client: clientId, role: "client" });
   await Client.deleteOne({ _id: clientId, agency: agencyId });
 }

@@ -13,7 +13,7 @@ const emptyWorkspace: WorkspaceData = {
   facebookAccounts: [],
 };
 
-export function useWorkspaceController(agencyId: string, role: Role) {
+export function useWorkspaceController(agencyId: string, role: Role, features?: string[], featuresConfigured?: boolean) {
   const [data, setData] = useState<WorkspaceData>(emptyWorkspace);
   const [errors, setErrors] = useState<Partial<Record<WorkspaceResource, string>>>({});
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export function useWorkspaceController(agencyId: string, role: Role) {
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
     setLoading(true);
-    const resources = getWorkspaceRequests(agencyId, role);
+    const resources = getWorkspaceRequests(agencyId, role, features, featuresConfigured);
     const results = await Promise.allSettled(resources.map((resource) => resource.load()));
     if (generation !== refreshGeneration.current) return false;
 
@@ -41,7 +41,7 @@ export function useWorkspaceController(agencyId: string, role: Role) {
     setErrors(nextErrors);
     setLoading(false);
     return results.every((result) => result.status === "fulfilled");
-  }, [agencyId, role]);
+  }, [agencyId, features, featuresConfigured, role]);
 
   useEffect(() => {
     setData(emptyWorkspace);

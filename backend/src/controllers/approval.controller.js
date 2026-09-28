@@ -1,7 +1,19 @@
+import { createAgencyWorkspace } from "../services/auth.service.js";
 import { decideUser, decideWorkspace, listPendingUsers, listPendingWorkspaces } from "../services/approval.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { serializePublicUser } from "../utils/serializePublicUser.js";
+
+export const createWorkspace = asyncHandler(async (req, res) => {
+  const result = await createAgencyWorkspace({ ...req.body, actor: req.user });
+  if (result.passwordError) return res.status(400).json({ success: false, message: result.passwordError });
+  if (result.planError) return res.status(400).json({ success: false, message: result.planError });
+  if (result.duplicateError) return res.status(409).json({ success: false, message: result.duplicateError });
+  res.status(201).json(new ApiResponse(201, {
+    agency: { _id: result.agency._id, name: result.agency.name, status: result.agency.status },
+    user: serializePublicUser(result.user),
+  }, "Agency created"));
+});
 
 export const getPendingWorkspaces = asyncHandler(async (_req, res) => {
   res.json(new ApiResponse(200, await listPendingWorkspaces()));

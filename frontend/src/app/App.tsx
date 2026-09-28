@@ -1,12 +1,13 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState, type ErrorInfo, type FormEvent, type ReactNode } from "react";
-import { BellRing, Check, MessageSquare, Megaphone, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { BellRing, Check, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import type { AdRequest, Client, ClientUpdate, Role, Screen, UserAccount } from "../types/crm";
 import { formatDate } from "../lib/formatters";
+import { isAgencyStaff } from "../lib/permissions";
 import { createClient, deleteClient, updateClient } from "../features/clients/clientsApi";
 import { createAdRequest, deleteAdRequest, updateAdRequest, updateRequestStatus } from "../features/requests/requestsApi";
-import { assignCampaignClient, assignClientAdAccount, createCampaign, deleteCampaign, getAccountReport, getCampaignRangeInsights, updateCampaign } from "../features/campaigns/campaignsApi";
+import { assignCampaignClient, assignCampaignRequest, assignClientAdAccount, getAccountReport, getCampaignRangeInsights } from "../features/campaigns/campaignsApi";
 import { createInvoice, deleteInvoice, markInvoicePaid, updateInvoice } from "../features/billing/billingApi";
-import { getPaymentAccounts, getPaymentTransactions } from "../features/billing/paymentApi";
+import { applyClientAdvance, getPaymentAccounts, getPaymentTransactions, recordClientAdvance, updateClientPayment } from "../features/billing/paymentApi";
 import { createUser, removeUser, updateUser } from "../features/users/usersApi";
 import { createUpdate, deleteUpdate, markUpdateRead, updateClientUpdate } from "../features/updates/updatesApi";
 import { AppShell } from "../features/shared/AppShell";
@@ -24,6 +25,7 @@ const RequestsPage = lazy(() => import("../features/requests/pages/RequestsPage"
 const CampaignsPage = lazy(() => import("../features/campaigns/pages/CampaignsPage").then((module) => ({ default: module.CampaignsPage })));
 const PlannerPage = lazy(() => import("../features/planner/pages/PlannerPage").then((module) => ({ default: module.PlannerPage })));
 const BillingPage = lazy(() => import("../features/billing/pages/BillingPage").then((module) => ({ default: module.BillingPage })));
+const SubscriptionsPage = lazy(() => import("../features/subscriptions/pages/SubscriptionsPage").then((module) => ({ default: module.SubscriptionsPage })));
 const SettingsPage = lazy(() => import("../features/settings/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })));
 const PaymentDetailsPage = lazy(() => import("../features/billing/pages/PaymentDetailsPage").then((module) => ({ default: module.PaymentDetailsPage })));
 const AdAccountsPage = lazy(() => import("../features/campaigns/pages/AdAccountsPage").then((module) => ({ default: module.AdAccountsPage })));
@@ -42,7 +44,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
 
   render() {
     if (!this.state.hasError) return this.props.children;
-    return <Card className="mx-auto max-w-xl p-6 text-center"><div role="alert"><h2 className="text-lg font-semibold text-[#1e40af]">This page could not load</h2><p className="mt-2 text-sm leading-6 text-slate-500">The rest of your workspace is still available. Try the page again or return to the dashboard.</p><button className="mt-5 rounded-md bg-[#1e40af] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e3a8a]" onClick={() => this.setState({ hasError: false })}>Try again</button></div></Card>;
+    return <Card className="mx-auto max-w-xl p-6 text-center"><div role="alert"><h2 className="text-lg font-semibold text-slate-900">This page could not load</h2><p className="mt-2 text-sm leading-6 text-slate-500">The rest of your workspace is still available. Try the page again or return to the dashboard.</p><button className="mt-5 rounded-lg bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" onClick={() => this.setState({ hasError: false })}>Try again</button></div></Card>;
   }
 }
 
@@ -63,45 +65,64 @@ function Sidebar({ screen, items, role, open, onNavigate, onClose }: {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
   }, [onClose, open]);
 
   return (
     <>
       <SidebarNav open={open}>
-        <div className="flex items-center justify-between border-b border-[#d1d5db] px-2 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded bg-[#1e40af] text-white"><MessageSquare className="size-4" /></div>
-            <div><p className="font-bold text-[#1e40af]">AdFlow Pro</p><p className="text-[10px] uppercase tracking-[0.12em] text-gray-400">Agency CRM</p></div>
+        <div className="flex items-center justify-between px-2 pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-[#1d4ed8] text-white shadow-sm"><MessageSquare className="size-4" /></div>
+            <div>
+              <p className="text-sm font-semibold tracking-tight text-slate-900">AdFlow Pro</p>
+              <p className="text-xs text-slate-500">Agency workspace</p>
+            </div>
           </div>
-          <button onClick={onClose} className="crm-icon-button lg:hidden" aria-label="Close navigation"><X className="size-5" /></button>
+          <button onClick={onClose} className="inline-flex size-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 lg:hidden" aria-label="Close navigation"><X className="size-4" /></button>
         </div>
-        <nav className="mt-3 flex-1 space-y-0.5" aria-label="Primary navigation">
+        <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace</p>
+        <nav className="flex-1 space-y-1 overflow-y-auto" aria-label="Primary navigation">
           {items.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => { onNavigate(id); onClose(); }}
-              className={`flex w-full items-center gap-2.5 border-l-[3px] px-2.5 py-2 text-xs font-semibold transition ${screen === id ? "border-[#1e40af] bg-[#e6f0ff] text-[#1e40af]" : "border-transparent text-[#1e40af] hover:bg-gray-50"}`}
+              aria-current={screen === id ? "page" : undefined}
+              className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${screen === id ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
             >
-              <Icon className="size-4" />{label}
+              <Icon className="size-4 shrink-0" />{label}
             </button>
           ))}
         </nav>
-        <div className="border-t border-[#d1d5db] bg-gray-50 p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-gray-400">Session role</p>
-          <p className="mt-1 text-xs font-semibold capitalize text-[#1e40af]">{role}</p>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Signed in as</p>
+          <p className="mt-1 text-sm font-semibold capitalize text-slate-800">{role}</p>
         </div>
       </SidebarNav>
-      {open && <button className="fixed inset-0 z-40 bg-[#10213d]/60 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}
-      <nav aria-label="Quick navigation" className="fixed bottom-3 left-3 right-3 z-30 flex items-center justify-around gap-1 rounded-lg border border-[#d5dce6] bg-white/95 p-1 shadow-[0_4px_16px_rgba(15,35,65,0.18)] backdrop-blur lg:hidden">{items.slice(0, 4).map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)} aria-current={screen === id ? "page" : undefined} className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded px-2 py-1.5 text-[10px] font-semibold transition ${screen === id ? "bg-[#e8eef6] text-[#183b68]" : "text-slate-500 hover:text-[#183b68]"}`}><Icon className="size-4" /><span className="max-w-full truncate">{label}</span></button>)}</nav>
+      {open && <button className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" onClick={onClose} aria-label="Close navigation overlay" />}
+      <nav aria-label="Quick navigation" className="crm-mobile-dock fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="flex gap-1 overflow-x-auto px-2 pt-1.5">
+          {items.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => onNavigate(id)} aria-current={screen === id ? "page" : undefined} className={`flex min-w-[4.5rem] flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-medium transition ${screen === id ? "bg-blue-50 text-blue-700" : "text-slate-500"}`}>
+              <Icon className="size-4" />
+              <span className="max-w-full truncate">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </>
   );
 }
 
 function Updates({ updates, role, currentUser, clients, requests, loadError, onRetry, onCreate, onEdit, onDelete, onMarkRead }: { updates: ClientUpdate[]; role: Role; currentUser: Pick<UserAccount, "_id">; clients: Client[]; requests: AdRequest[]; loadError?: string; onRetry?: () => void; onCreate: (payload: { client: string; adRequest: string; title: string; content: string; type?: ClientUpdate["type"] }) => Promise<void>; onEdit: (id: string, payload: { client?: string; adRequest?: string; title?: string; content?: string; type?: ClientUpdate["type"] }) => Promise<void>; onDelete: (id: string) => Promise<void>; onMarkRead: (id: string) => Promise<void> }) {
   const [search, setSearch] = useState(""); const [typeFilter, setTypeFilter] = useState("all"); const [clientFilter, setClientFilter] = useState("all"); const [readFilter, setReadFilter] = useState("all"); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<ClientUpdate | null>(null); const [client, setClient] = useState(""); const [adRequest, setAdRequest] = useState(""); const [title, setTitle] = useState(""); const [content, setContent] = useState(""); const [type, setType] = useState<ClientUpdate["type"]>("message"); const [error, setError] = useState(""); const [busy, setBusy] = useState("");
-  const canManage = role === "admin" || role === "team"; const canRead = role === "client" || role === "moderator";
+  const canManage = isAgencyStaff(role); const canRead = role === "client" || role === "moderator";
   const isRead = (item: ClientUpdate) => Boolean(item.readBy?.some((entry) => (typeof entry.user === "string" ? entry.user : entry.user._id) === currentUser._id));
   const matchingRequests = useMemo(() => requests.filter((item) => item.client?._id === client), [requests, client]);
   const filtered = useMemo(() => updates.filter((item) => (!search.trim() || [item.title, item.content, item.client?.name, item.adRequest?.requestNumber].some((value) => value?.toLowerCase().includes(search.toLowerCase()))) && (typeFilter === "all" || item.type === typeFilter) && (clientFilter === "all" || item.client?._id === clientFilter) && (readFilter === "all" || (readFilter === "read") === isRead(item))), [updates, search, typeFilter, clientFilter, readFilter, currentUser._id]);
@@ -117,8 +138,8 @@ function Updates({ updates, role, currentUser, clients, requests, loadError, onR
 
 function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<ReturnType<typeof useSessionController>["session"]>; onLogout: () => void }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { items, screen, title, setScreen } = useNavigationController(session.user.role);
-  const { data, errors, loading, refresh } = useWorkspaceController(session.user.agency, session.user.role);
+  const { items, screen, title, setScreen } = useNavigationController(session.user.role, session.user.platformRole, session.user.features, session.user.featuresConfigured);
+  const { data, errors, loading, refresh } = useWorkspaceController(session.user.agency, session.user.role, session.user.features, session.user.featuresConfigured);
   const errorEntries = Object.entries(errors);
   const agency = session.user.agency;
   const mutate = async (action: () => Promise<unknown>) => { await action(); await refresh(); };
@@ -145,15 +166,16 @@ function AuthenticatedWorkspace({ session, onLogout }: { session: NonNullable<Re
       {loading && <div role="status" className="mb-4 text-sm text-slate-600">Refreshing workspace data...</div>}
       <PageErrorBoundary>
         <Suspense fallback={<PageFallback />}>
-        {screen === "dashboard" && <DashboardPage role={session.user.role} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
-        {screen === "clients" && <ClientsPage clients={data.clients} requests={data.requests} updates={data.updates} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
+        {screen === "dashboard" && <DashboardPage role={session.user.role} platformRole={session.user.platformRole} features={session.user.features} featuresConfigured={session.user.featuresConfigured} clients={data.clients} requests={data.requests} campaigns={data.campaigns} invoices={data.invoices} facebookOverview={data.facebook} />}
+        {screen === "clients" && <ClientsPage agencyId={agency} clients={data.clients} requests={data.requests} updates={data.updates} onCreateClient={(payload) => mutate(() => createClient(agency, payload))} onUpdateClient={(id, payload) => mutate(() => updateClient(agency, id, payload))} onDeleteClient={(id) => mutate(() => deleteClient(agency, id))} />}
         {screen === "requests" && <RequestsPage agencyId={agency} clients={data.clients} requests={data.requests} role={session.user.role} currentClient={session.user.client} onCreateRequest={(payload) => mutate(() => createAdRequest(agency, payload))} onUpdateRequest={(id, payload) => mutate(() => updateAdRequest(agency, id, payload))} onDeleteRequest={(id) => mutate(() => deleteAdRequest(agency, id))} onUpdateStatus={(id, payload) => mutate(() => updateRequestStatus(agency, id, payload))} />}
-        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} requests={data.requests} role={session.user.role} onLoadInsights={(range, signal) => getCampaignRangeInsights(agency, range, signal)} onLoadAccountReport={(range, signal) => getAccountReport(agency, range, signal)} onCreateCampaign={(payload) => mutate(() => createCampaign(agency, payload))} onUpdateCampaign={(id, payload) => mutate(() => updateCampaign(agency, id, payload))} onDeleteCampaign={(id) => mutate(() => deleteCampaign(agency, id))} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
+        {screen === "campaigns" && <CampaignsPage campaigns={data.campaigns} accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} requests={data.requests} role={session.user.role} onLoadInsights={(range, signal) => getCampaignRangeInsights(agency, range, signal)} onLoadAccountReport={(range, signal) => getAccountReport(agency, range, signal)} onAssignCampaignClient={(campaignId, clientId) => mutate(() => assignCampaignClient(agency, campaignId, clientId))} onAssignCampaignRequest={(campaignId, adRequestId) => mutate(() => assignCampaignRequest(agency, campaignId, adRequestId))} onAssignClientAdAccount={(clientId, accountId, assigned) => mutate(() => assignClientAdAccount(agency, clientId, accountId, assigned))} />}
         {screen === "planner" && <PlannerPage invoices={data.invoices} requests={data.requests} campaigns={data.campaigns} clients={data.clients} onNavigate={setScreen} />}
-        {screen === "billing" && <BillingPage invoices={data.invoices} clients={data.clients} requests={data.requests} role={session.user.role} onCreateInvoice={(payload) => mutate(() => createInvoice(agency, payload))} onUpdateInvoice={(id, payload) => mutate(() => updateInvoice(agency, id, payload))} onDeleteInvoice={(id) => mutate(() => deleteInvoice(agency, id))} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} />}
-        {screen === "payment_details" && <PaymentDetailsPage onLoad={loadPaymentDetails} />}
+        {screen === "billing" && <BillingPage agencyId={agency} invoices={data.invoices} clients={data.clients} requests={data.requests} role={session.user.role} currentClientId={session.user.client} onCreateInvoice={(payload) => mutate(() => createInvoice(agency, payload))} onUpdateInvoice={(id, payload) => mutate(() => updateInvoice(agency, id, payload))} onDeleteInvoice={(id) => mutate(() => deleteInvoice(agency, id))} onMarkPaid={(id) => mutate(() => markInvoicePaid(agency, id))} onRecordAdvance={(payload) => mutate(() => recordClientAdvance(agency, payload))} onApplyAdvance={(id, amount) => mutate(() => applyClientAdvance(agency, id, amount))} />}
+        {screen === "subscriptions" && <SubscriptionsPage agency={agency} role={session.user.role} platformRole={session.user.platformRole} />}
+        {screen === "payment_details" && <PaymentDetailsPage role={session.user.role} clients={data.clients} invoices={data.invoices} currentClientId={session.user.client} agencyId={agency} onLoad={loadPaymentDetails} onRecordAdvance={(payload) => mutate(() => recordClientAdvance(agency, payload))} onApplyAdvance={(id) => mutate(() => applyClientAdvance(agency, id))} onUpdatePayment={(id, payload) => mutate(() => updateClientPayment(agency, id, payload))} />}
         {screen === "adaccounts" && <AdAccountsPage accounts={data.facebookAccounts.length ? data.facebookAccounts : data.facebook?.connection.accounts || []} clients={data.clients} />}
-        {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} />}
+        {screen === "settings" && <SettingsPage agencyId={agency} onWorkspaceRefresh={refresh} platformRole={session.user.platformRole} user={session.user} />}
         {screen === "updates" && <Updates updates={data.updates} loadError={errors.updates} onRetry={() => void refresh()} role={session.user.role} currentUser={session.user} clients={data.clients} requests={data.requests} onCreate={(payload) => mutate(() => createUpdate(agency, payload))} onEdit={(id, payload) => mutate(() => updateClientUpdate(agency, id, payload))} onDelete={(id) => mutate(() => deleteUpdate(agency, id))} onMarkRead={(id) => mutate(() => markUpdateRead(agency, id))} />}
         {screen === "users" && <UsersPage users={data.users} loadError={errors.users} onRetry={refresh} clients={data.clients} currentRole={session.user.role} currentClient={session.user.client} currentUserId={session.user._id} onCreateUser={(payload) => mutate(() => createUser(agency, payload))} onUpdateUser={(id, payload) => mutate(() => updateUser(agency, id, payload))} onRemoveUser={(id) => mutate(() => removeUser(agency, id))} />}
         </Suspense>

@@ -6,6 +6,7 @@ export const validateClientCreate = validateObject({
   name: { required: true, type: "string", minLength: 2, maxLength: 120 },
   contactName: { required: true, type: "string", minLength: 2, maxLength: 100 },
   email: { required: true, type: "string", email: true },
+  password: { required: true, type: "string", minLength: 12 },
 });
 
 export const validateFacebookAccountAssignment = validateObject({

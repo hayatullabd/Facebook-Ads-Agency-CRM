@@ -6,6 +6,9 @@ import Agency from "../models/Agency.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import User from "../models/User.model.js";
 import { getPasswordPolicyError } from "./passwordPolicy.service.js";
+import { createSubscription } from "./subscription.service.js";
+
+const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "agency";
 
 const signToken = (user) => jwt.sign(
   { id: user._id, role: user.role, agency: user.agency, client: user.client },
@@ -53,7 +56,7 @@ export const registerAccount = async ({ agencyName, name, email, password, mode 
     agency = await Agency.create({
       _id: agencyId,
       name: normalizedAgencyName,
-      slug: normalizedAgencyName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      slug: slugify(normalizedAgencyName),
       owner: userId,
       status: WORKSPACE_STATUSES.PENDING,
     });
@@ -74,6 +77,61 @@ export const registerAccount = async ({ agencyName, name, email, password, mode 
         await Agency.deleteOne({ _id: agency._id });
       } catch {
         // Preserve the user creation error; the orphaned agency can be reconciled separately.
+      }
+    }
+    if (error?.code === 11000 && error?.keyPattern?.email) {
+      return { duplicateError: "An account with this email already exists" };
+    }
+    if (error?.code === 11000 && error?.keyPattern?.slug) {
+      return { duplicateError: "An agency with this name already exists" };
+    }
+    throw error;
+  }
+};
+
+export const createAgencyWorkspace = async ({ agencyName, name, email, password, plan, actor }) => {
+  const passwordError = getPasswordPolicyError(password);
+  if (passwordError) return { passwordError };
+  const normalizedAgencyName = agencyName.trim();
+  const normalizedName = name.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+  const agencyId = new mongoose.Types.ObjectId();
+  const userId = new mongoose.Types.ObjectId();
+  let agency;
+  try {
+    agency = await Agency.create({
+      _id: agencyId,
+      name: normalizedAgencyName,
+      slug: slugify(normalizedAgencyName),
+      owner: userId,
+      status: WORKSPACE_STATUSES.ACTIVE,
+    });
+    const user = await User.create({
+      _id: userId,
+      agency: agency._id,
+      name: normalizedName,
+      email: normalizedEmail,
+      password,
+      role: ROLES.OWNER,
+      platformRole: PLATFORM_ROLES.USER,
+      status: USER_STATUSES.ACTIVE,
+      isActive: true,
+    });
+    try {
+      await createSubscription({ agencyId: agency._id, planId: plan, actor });
+    } catch (error) {
+      await User.deleteOne({ _id: user._id });
+      await Agency.deleteOne({ _id: agency._id });
+      if (error?.statusCode) return { planError: error.message };
+      throw error;
+    }
+    return { agency, user };
+  } catch (error) {
+    if (agency) {
+      try {
+        await Agency.deleteOne({ _id: agency._id });
+      } catch {
+        // Keep the original create error if cleanup fails.
       }
     }
     if (error?.code === 11000 && error?.keyPattern?.email) {

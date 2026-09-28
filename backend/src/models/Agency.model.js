@@ -48,6 +48,41 @@ const agencySchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subscription",
+      default: null,
+      index: true,
+    },
+    subscriptionPlan: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubscriptionPlan",
+      default: null,
+      index: true,
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["trialing", "active", "past_due", "paused", "canceled", "expired"],
+      default: "trialing",
+      index: true,
+    },
+    subscriptionRenewalAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    paymentDetails: {
+      type: [{
+        method: { type: String, enum: ["bkash", "nagad", "bank", "cash"], required: true },
+        name: { type: String, trim: true, maxlength: 80, default: "" },
+        accountName: { type: String, trim: true, maxlength: 120, required: true },
+        accountNumber: { type: String, trim: true, maxlength: 80, required: true },
+        bankName: { type: String, trim: true, maxlength: 120, default: "" },
+        branchName: { type: String, trim: true, maxlength: 120, default: "" },
+        routingNumber: { type: String, trim: true, maxlength: 40, default: "" },
+      }],
+      default: [],
+    },
   },
   { timestamps: true }
 );

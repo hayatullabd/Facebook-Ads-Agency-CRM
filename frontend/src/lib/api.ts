@@ -66,3 +66,15 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   return (envelope && "data" in envelope ? envelope.data : payload) as T;
 }
+
+export async function apiBlob(path: string): Promise<Blob> {
+  const token = localStorage.getItem("adflow_token");
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    if (response.status === 401 && token) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    throw new ApiError("Screenshot could not be opened", response.status);
+  }
+  return response.blob();
+}

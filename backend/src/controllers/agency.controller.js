@@ -19,6 +19,33 @@ export const updateAgency = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, agency, "Agency updated"));
 });
 
+const sanitizePaymentDetails = (items) => items.map((item) => ({
+  method: item.method,
+  name: item.method === "bank" ? "" : String(item.name || "").trim(),
+  accountName: String(item.accountName || "").trim(),
+  accountNumber: String(item.accountNumber || "").trim(),
+  bankName: item.method === "bank" ? String(item.bankName || "").trim() : "",
+  branchName: item.method === "bank" ? String(item.branchName || "").trim() : "",
+  routingNumber: item.method === "bank" ? String(item.routingNumber || "").trim() : "",
+}));
+
+export const getAgencyPaymentDetails = asyncHandler(async (req, res) => {
+  const agency = await Agency.findById(req.params.agencyId).select("paymentDetails");
+  if (!agency) throw new ApiError(404, "Agency not found");
+  res.json(new ApiResponse(200, agency.paymentDetails || []));
+});
+
+export const saveAgencyPaymentDetails = asyncHandler(async (req, res) => {
+  const paymentDetails = sanitizePaymentDetails(req.body.paymentDetails);
+  const agency = await Agency.findByIdAndUpdate(
+    req.params.agencyId,
+    { paymentDetails },
+    { new: true, runValidators: true }
+  ).select("paymentDetails");
+  if (!agency) throw new ApiError(404, "Agency not found");
+  res.json(new ApiResponse(200, agency.paymentDetails, "Payment details saved"));
+});
+
 export const saveFacebookCredential = asyncHandler(async (req, res) => {
   const accessToken = req.body.accessToken?.trim();
   if (!accessToken) throw new ApiError(400, "Facebook access token is required");
@@ -35,6 +62,8 @@ export const saveFacebookCredential = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Default Facebook ad account is not accessible with this token");
   }
   const now = new Date();
+  if (!process.env.FACEBOOK_GRAPH_VERSION?.trim()) throw new ApiError(500, "FACEBOOK_GRAPH_VERSION is not configured");
+  if (!process.env.FACEBOOK_USD_RATES?.trim()) throw new ApiError(500, "FACEBOOK_USD_RATES is not configured");
   const credential = await ApiCredential.findOneAndUpdate(
     { agency: req.params.agencyId },
     { $set: { accessToken, defaultAdAccountId, adAccounts, agency: req.params.agencyId, provider: "facebook", isConnected: true, lastVerifiedAt: now, lastAccountSyncAt: now } },

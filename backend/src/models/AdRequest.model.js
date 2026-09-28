@@ -1,11 +1,16 @@
 import mongoose from "mongoose";
 
-const CANONICAL_PLATFORMS = ["facebook", "instagram", "youtube", "google"];
+const CANONICAL_PLATFORMS = ["facebook", "whatsapp", "instagram", "youtube", "google"];
 const LEGACY_PLATFORMS = ["both"];
 
 export const normalizeAdRequestPlatforms = (value) => {
   const values = Array.isArray(value) ? value : [value];
   return [...new Set(values.flatMap((platform) => platform === "both" ? ["facebook", "instagram"] : [platform]))];
+};
+
+export const normalizeAdRequestObjectives = (value) => {
+  const values = Array.isArray(value) ? value : value == null || value === "" ? [] : [value];
+  return [...new Set(values.map((item) => String(item).trim()).filter(Boolean))];
 };
 
 const adRequestSchema = new mongoose.Schema(
@@ -47,15 +52,32 @@ const adRequestSchema = new mongoose.Schema(
       set: normalizeAdRequestPlatforms,
     },
     objectiveGroup: {
-      type: String,
-      enum: ["website", "engagement", "message", "others", "page", "awareness", "leads"],
+      type: mongoose.Schema.Types.Mixed,
       required: true,
+      set(value) {
+        const values = Array.isArray(value) ? value : value ? [value] : [];
+        return [...new Set(values)];
+      },
+      validate: {
+        validator(value) {
+          const values = Array.isArray(value) ? value : [value];
+          const allowed = ["website", "engagement", "message", "others", "page", "awareness", "leads"];
+          return values.length > 0 && values.every((item) => allowed.includes(item));
+        },
+        message: "Objective group must contain valid groups",
+      },
     },
     objective: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       required: [true, "Campaign objective is required"],
-      trim: true,
-      maxlength: 100,
+      set: normalizeAdRequestObjectives,
+      validate: {
+        validator(value) {
+          const values = Array.isArray(value) ? value : [value];
+          return values.length > 0 && values.length <= 12 && values.every((item) => typeof item === "string" && item.trim().length >= 2 && item.trim().length <= 100);
+        },
+        message: "Add 1 to 12 objectives, each 2 to 100 characters",
+      },
     },
     budget: {
       amount: {
@@ -147,5 +169,6 @@ const adRequestSchema = new mongoose.Schema(
 
 adRequestSchema.index({ agency: 1, requestNumber: 1 }, { unique: true });
 adRequestSchema.index({ agency: 1, status: 1, createdAt: -1 });
+adRequestSchema.index({ agency: 1, client: 1, createdAt: -1 });
 
 export default mongoose.model("AdRequest", adRequestSchema);

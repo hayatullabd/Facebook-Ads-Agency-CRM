@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 import { REQUEST_STATUSES } from "../constants/requestStatuses.js";
 import { ApiError } from "../utils/ApiError.js";
 
-const PLATFORMS = ["facebook", "instagram", "youtube", "google"];
-const OBJECTIVE_GROUPS = ["message", "engagement", "website", "others"];
+const PLATFORMS = ["facebook", "whatsapp", "instagram", "youtube", "google"];
+const OBJECTIVE_GROUPS = ["message", "engagement", "website", "others", "page", "awareness", "leads"];
 const BUDGET_TYPES = ["daily", "lifetime"];
 const CURRENCIES = ["USD", "BDT", "INR"];
 const CREATE_FIELDS = ["client", "pageName", "platform", "objectiveGroup", "objective", "budget", "durationDays", "notes", "contentLink"];
@@ -43,6 +43,34 @@ const validatePlatforms = (body, required) => {
   return null;
 };
 
+const validateObjectiveGroups = (body, required) => {
+  const value = body.objectiveGroup;
+  if (value === undefined && !required) return null;
+  if (value === undefined) return "objectiveGroup is required";
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : null;
+  if (!values) return "objectiveGroup must be a list of groups";
+  const cleaned = [...new Set(values)];
+  if (!cleaned.length || cleaned.some((group) => typeof group !== "string" || !OBJECTIVE_GROUPS.includes(group))) {
+    return `objectiveGroup must contain only: ${OBJECTIVE_GROUPS.join(", ")}`;
+  }
+  body.objectiveGroup = cleaned;
+  return null;
+};
+
+const validateObjectives = (body, required) => {
+  const value = body.objective;
+  if (value === undefined && !required) return null;
+  if (value === undefined) return "objective is required";
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : null;
+  if (!values) return "objective must be a list of objectives";
+  const cleaned = [...new Set(values.map((item) => typeof item === "string" ? item.trim() : "").filter(Boolean))];
+  if (!cleaned.length) return "At least one objective is required";
+  if (cleaned.length > 12) return "At most 12 objectives are allowed";
+  if (cleaned.some((item) => item.length < 2 || item.length > 100)) return "Each objective must be 2 to 100 characters";
+  body.objective = cleaned;
+  return null;
+};
+
 const validateBudget = (budget, required) => {
   if (budget === undefined && !required) return null;
   if (!budget || typeof budget !== "object" || Array.isArray(budget)) return "budget must be an object";
@@ -64,8 +92,8 @@ const validateBrief = (req, next, create) => {
   const errors = [
     validateString(body, "pageName", { required: create, min: 2, max: 150 }),
     validatePlatforms(body, create),
-    validateString(body, "objectiveGroup", { required: create, values: OBJECTIVE_GROUPS }),
-    validateString(body, "objective", { required: create, min: 2, max: 100 }),
+    validateObjectiveGroups(body, create),
+    validateObjectives(body, create),
     validateString(body, "notes", { max: 2000 }),
     validateString(body, "contentLink", { max: 2048 }),
     validateBudget(body.budget, create),

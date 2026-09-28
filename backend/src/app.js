@@ -6,10 +6,12 @@ import mongoose from "mongoose";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { apiRateLimiter } from "./middlewares/apiRateLimiter.middleware.js";
+import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { securityHeaders } from "./middlewares/securityHeaders.middleware.js";
 import { runtimeState } from "./services/runtimeState.service.js";
 import { startFacebookSyncWorker } from "./services/facebookSyncJob.service.js";
+import { startSubscriptionRenewalJob } from "./jobs/subscriptionRenewal.job.js";
 import routes from "./routes/index.js";
 
 const app = express();
@@ -38,7 +40,7 @@ app.use(cors({
   origin(origin, callback) { callback(null, isAllowedOrigin(origin)); },
   credentials: true,
 }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use(morgan(env.isProduction ? "combined" : "dev"));
 
 app.get("/health/live", (_req, res) => {
@@ -54,7 +56,7 @@ const readinessHandler = (_req, res) => {
 app.get("/health/ready", readinessHandler);
 app.get("/health", readinessHandler);
 
-app.use("/api", apiRateLimiter, routes);
+app.use("/api", compressionMiddleware, apiRateLimiter, routes);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
@@ -67,6 +69,8 @@ export const startServer = async () => {
   runtimeState.markReady();
   try { startFacebookSyncWorker(); }
   catch (error) { console.error("Facebook sync worker failed to start:", error?.message || "unknown error"); }
+  try { startSubscriptionRenewalJob(); }
+  catch (error) { console.error("Subscription renewal job failed to start:", error?.message || "unknown error"); }
   return app;
 };
 

@@ -9,7 +9,7 @@ const campaignSchema = new mongoose.Schema(
     agency: { type: mongoose.Schema.Types.ObjectId, ref: "Agency", required: true, index: true },
     client: { type: mongoose.Schema.Types.ObjectId, ref: "Client", required: requiredForCrm, default: null, index: true },
     adRequest: { type: mongoose.Schema.Types.ObjectId, ref: "AdRequest", required: requiredForCrm, default: null },
-    source: { type: String, enum: ["crm", "facebook"], default: "crm", index: true },
+    source: { type: String, enum: ["crm", "facebook"], default: "facebook", index: true },
     facebookCampaignId: { type: String, trim: true, default: "" },
     facebookAdAccountId: { type: String, trim: true, default: "" },
     facebookAdAccountName: { type: String, trim: true, default: "" },

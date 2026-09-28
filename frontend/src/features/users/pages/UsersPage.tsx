@@ -5,9 +5,11 @@ import { Card } from "../../shared/Card";
 import { FeaturePanel } from "../../shared/FeaturePanel";
 import { StatusBadge } from "../../shared/StatusBadge";
 import { Button } from "../../shared/Button";
+import { isAgencyAdmin } from "../../../lib/permissions";
+import { TEAM_FEATURE_OPTIONS, TeamFeatureChecklist } from "../TeamFeatureChecklist";
 
 const roleOptions: Role[] = ["team", "client", "moderator"];
-const firstPermittedRole = (role: Role): Role => role === "admin" ? "team" : role === "team" ? "client" : "moderator";
+const firstPermittedRole = (role: Role): Role => isAgencyAdmin(role) ? "team" : role === "team" ? "client" : "moderator";
 
 export function UsersPage({ users, clients, currentRole, currentClient, currentUserId, loadError, onRetry, onCreateUser, onUpdateUser, onRemoveUser }: {
   users: UserAccount[];
@@ -17,8 +19,8 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   currentUserId: string;
   loadError?: string;
   onRetry?: () => void;
-  onCreateUser: (payload: { name: string; email: string; password: string; role: Role; client?: string }) => Promise<void>;
-  onUpdateUser: (id: string, payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean }) => Promise<void>;
+  onCreateUser: (payload: { name: string; email: string; password: string; role: Role; client?: string; features?: string[] }) => Promise<void>;
+  onUpdateUser: (id: string, payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean; features?: string[] }) => Promise<void>;
   onRemoveUser: (id: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -29,13 +31,14 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
   const [role, setRole] = useState<Role>(() => firstPermittedRole(currentRole));
   const [client, setClient] = useState(currentClient || "");
   const [isActive, setIsActive] = useState(true);
+  const [features, setFeatures] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [clientFilter, setClientFilter] = useState("all");
-  const allowed = useMemo(() => currentRole === "admin" ? roleOptions : currentRole === "team" ? ["client", "moderator"] as Role[] : ["moderator"] as Role[], [currentRole]);
+  const allowed = useMemo(() => currentRole === "owner" ? ["admin", "team", "client", "moderator"] as Role[] : currentRole === "admin" ? roleOptions : currentRole === "team" ? ["client", "moderator"] as Role[] : ["moderator"] as Role[], [currentRole]);
   const filtered = useMemo(() => users.filter((user) => {
     const userClient = typeof user.client === "object" && user.client ? user.client : null;
     return (!search.trim() || [user.name, user.email, userClient?.name].some((value) => value?.toLowerCase().includes(search.toLowerCase())))
@@ -54,11 +57,11 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
 
   const resetForm = () => {
     const nextRole = firstPermittedRole(currentRole);
-    setEditing(null); setName(""); setEmail(""); setPassword(""); setRole(nextRole); setClient(currentClient || ""); setIsActive(true); setError("");
+    setEditing(null); setName(""); setEmail(""); setPassword(""); setRole(nextRole); setClient(currentClient || ""); setIsActive(true); setFeatures([]); setError("");
   };
   const close = () => { setOpen(false); resetForm(); };
   const startCreate = () => { resetForm(); setOpen(true); };
-  const startEdit = (user: UserAccount) => { setEditing(user); setName(user.name); setEmail(user.email); setRole(user.role); setClient(typeof user.client === "object" && user.client ? user.client._id : typeof user.client === "string" ? user.client : ""); setIsActive(user.isActive); setPassword(""); setError(""); setOpen(true); };
+  const startEdit = (user: UserAccount) => { setEditing(user); setName(user.name); setEmail(user.email); setRole(user.role); setClient(typeof user.client === "object" && user.client ? user.client._id : typeof user.client === "string" ? user.client : ""); setIsActive(user.isActive); setFeatures(user.role === "team" ? (user.featuresConfigured ? (user.features || []).filter((item) => item !== "dashboard") : TEAM_FEATURE_OPTIONS.map((item) => item.id)) : []); setPassword(""); setError(""); setOpen(true); };
 
   useEffect(() => {
     if (!open) return;
@@ -73,16 +76,17 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
       if (editing) {
         const originalClient = typeof editing.client === "object" && editing.client ? editing.client._id : typeof editing.client === "string" ? editing.client : null;
         const nextClient = ["client", "moderator"].includes(role) ? client : null;
-        const payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean } = {};
+        const payload: { name?: string; email?: string; role?: Role; client?: string | null; isActive?: boolean; features?: string[] } = {};
         if (name.trim() !== editing.name) payload.name = name.trim();
         if (email.trim().toLowerCase() !== editing.email.toLowerCase()) payload.email = email.trim();
         if (role !== editing.role) payload.role = role;
         if (nextClient !== originalClient) payload.client = nextClient;
         if (isActive !== editing.isActive) payload.isActive = isActive;
+        if (role === "team") payload.features = features;
         if (!Object.keys(payload).length) { close(); return; }
         await onUpdateUser(editing._id, payload);
       } else {
-        await onCreateUser({ name, email, password, role, client: role === "team" ? undefined : client });
+        await onCreateUser({ name, email, password, role, client: role === "team" ? undefined : client, ...(role === "team" ? { features } : {}) });
       }
       close();
     } catch (err) {
@@ -98,7 +102,9 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
 
   const action = (user: UserAccount) => {
     const userClientId = typeof user.client === "object" && user.client ? user.client._id : user.client;
-    const canManageTarget = currentRole === "admin"
+    const canManageTarget = currentRole === "owner"
+      ? user.role !== "owner" || user._id === currentUserId
+      : currentRole === "admin"
       ? user.role !== "admin" || user._id === currentUserId
       : currentRole === "team"
         ? ["client", "moderator"].includes(user.role)
@@ -106,7 +112,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
           ? user.role === "moderator" && userClientId === currentClient
           : false;
     const canEdit = canManageTarget;
-    const canRemove = canManageTarget && user.role !== "admin" && user._id !== currentUserId;
+    const canRemove = canManageTarget && user._id !== currentUserId && (currentRole === "owner" || user.role !== "admin");
     return canEdit || canRemove ? <div className="flex gap-1">{canEdit && <button type="button" className="crm-icon-button" onClick={() => startEdit(user)} aria-label={`Edit ${user.name}`} title="Edit user"><Pencil className="size-3.5" /></button>}{canRemove && <button type="button" className="crm-icon-button hover:border-red-500/40 hover:text-red-300" onClick={() => void remove(user)} aria-label={`Remove ${user.name}`} title="Remove user"><Trash2 className="size-3.5" /></button>}</div> : null;
   };
 
@@ -128,7 +134,7 @@ export function UsersPage({ users, clients, currentRole, currentClient, currentU
           <div className="crm-desktop-table"><table className="crm-compact-table min-w-[760px]"><thead className="crm-table-head"><tr><th className="px-2 py-2">User</th><th className="px-2 py-2">Role</th><th className="px-2 py-2">Client</th><th className="px-2 py-2">Status</th><th className="px-2 py-2 text-right">Action</th></tr></thead><tbody>{filtered.map((user) => <tr key={user._id} className="hover:bg-white/[0.02]"><td className="crm-table-cell"><p className="font-semibold text-slate-200">{user.name}</p><p className="text-xs text-slate-400">{user.email}</p></td><td className="crm-table-cell"><StatusBadge>{user.role}</StatusBadge></td><td className="crm-table-cell">{typeof user.client === "object" && user.client ? user.client.name : "Agency"}</td><td className="crm-table-cell"><StatusBadge tone={user.isActive ? "success" : "danger"}>{user.isActive ? "Active" : "Disabled"}</StatusBadge></td><td className="crm-table-cell"><div className="flex justify-end">{action(user)}</div></td></tr>)}</tbody></table></div>
         </> : <div className="crm-empty"><UserRound className="size-5" />No users match the current filters.</div>}
       </Card>
-      {open && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><Card className="w-full max-w-lg" role="dialog" aria-modal="true" aria-labelledby="user-form-title"><div className="border-b border-[#20293a] px-4 py-3"><h3 id="user-form-title" className="font-semibold">{editing ? "Edit workspace user" : "Add workspace user"}</h3></div><form onSubmit={submit} className="space-y-3 p-4">{error && <div role="alert" className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}<label><span className="crm-label">Full name</span><input required minLength={2} maxLength={100} className="crm-input" value={name} onChange={(event) => setName(event.target.value)} /></label><label><span className="crm-label">Email</span><input required type="email" className="crm-input" value={email} onChange={(event) => setEmail(event.target.value)} /></label>{!editing && <label><span className="crm-label">Temporary password</span><input required minLength={12} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}" title="Use 12 or more characters with uppercase, lowercase, number, and special character" type="password" autoComplete="new-password" className="crm-input" value={password} onChange={(event) => setPassword(event.target.value)} /><span className="mt-1.5 block text-xs text-slate-500">Use 12+ characters with uppercase, lowercase, number, and special character.</span></label>}<div className="grid gap-4 sm:grid-cols-2"><label><span className="crm-label">Role</span><select disabled={editing?._id === currentUserId} className="crm-input" value={role} onChange={(event) => setRole(event.target.value as Role)}>{editing?.role === "admin" && <option value="admin">admin</option>}{allowed.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>{["client", "moderator"].includes(role) && <label><span className="crm-label">Client</span><select required disabled={currentRole === "client"} className="crm-input" value={client} onChange={(event) => setClient(event.target.value)}><option value="">Select client</option>{clients.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select></label>}{editing && <label className="flex items-center gap-2 pt-6"><input type="checkbox" disabled={editing._id === currentUserId} checked={isActive} onChange={(event) => setIsActive(event.target.checked)}/><span className="text-sm">Active account</span></label>}</div><div className="flex justify-end gap-2 border-t border-[#20293a] pt-4"><button type="button" className="rounded-md border border-[#263044] px-4 py-2 text-sm" onClick={close}>Cancel</button><Button disabled={saving}>{saving ? "Saving..." : editing ? "Save User" : "Create User"}</Button></div></form></Card></div>}
+      {open && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><Card className="w-full max-w-lg" role="dialog" aria-modal="true" aria-labelledby="user-form-title"><div className="border-b border-[#20293a] px-4 py-3"><h3 id="user-form-title" className="font-semibold">{editing ? "Edit workspace user" : "Add workspace user"}</h3></div><form onSubmit={submit} className="space-y-3 p-4">{error && <div role="alert" className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}<label><span className="crm-label">Full name</span><input required minLength={2} maxLength={100} className="crm-input" value={name} onChange={(event) => setName(event.target.value)} /></label><label><span className="crm-label">Email</span><input required type="email" className="crm-input" value={email} onChange={(event) => setEmail(event.target.value)} /></label>{!editing && <label><span className="crm-label">Temporary password</span><input required minLength={12} pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}" title="Use 12 or more characters with uppercase, lowercase, number, and special character" type="password" autoComplete="new-password" className="crm-input" value={password} onChange={(event) => setPassword(event.target.value)} /><span className="mt-1.5 block text-xs text-slate-500">Use 12+ characters with uppercase, lowercase, number, and special character.</span></label>}<div className="grid gap-4 sm:grid-cols-2"><label><span className="crm-label">Role</span><select disabled={editing?._id === currentUserId} className="crm-input" value={role} onChange={(event) => setRole(event.target.value as Role)}>{editing?.role === "admin" && <option value="admin">admin</option>}{allowed.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>{["client", "moderator"].includes(role) && <label><span className="crm-label">Client</span><select required disabled={currentRole === "client"} className="crm-input" value={client} onChange={(event) => setClient(event.target.value)}><option value="">Select client</option>{clients.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select></label>}{editing && <label className="flex items-center gap-2 pt-6"><input type="checkbox" disabled={editing._id === currentUserId} checked={isActive} onChange={(event) => setIsActive(event.target.checked)}/><span className="text-sm">Active account</span></label>}</div>{role === "team" && <TeamFeatureChecklist value={features} onChange={setFeatures} />}<div className="flex justify-end gap-2 border-t border-[#20293a] pt-4"><button type="button" className="rounded-md border border-[#263044] px-4 py-2 text-sm" onClick={close}>Cancel</button><Button disabled={saving}>{saving ? "Saving..." : editing ? "Save User" : "Create User"}</Button></div></form></Card></div>}
     </div>
   );
 }

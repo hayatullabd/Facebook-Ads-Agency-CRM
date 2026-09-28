@@ -3,7 +3,6 @@ import Agency from "../models/Agency.model.js";
 import ApiCredential from "../models/ApiCredential.model.js";
 import Campaign from "../models/Campaign.model.js";
 import Invoice from "../models/Invoice.model.js";
-import Client from "../models/Client.model.js";
 import { getClientCampaignVisibility } from "./campaignAssignment.service.js";
 import { ApiError } from "../utils/ApiError.js";
 
@@ -11,26 +10,47 @@ const GRAPH_HOST = "graph.facebook.com";
 const GRAPH_API_BASE_URL = `https://${GRAPH_HOST}/${env.facebookGraphVersion}`;
 const ACCOUNT_FIELDS = "id,account_id,name,account_status,currency,timezone_name,balance,amount_spent,spend_cap";
 const CAMPAIGN_FIELDS = "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,updated_time";
-const CAMPAIGN_INSIGHT_FIELDS = "campaign_id,spend,reach,impressions,actions,ctr";
+const CAMPAIGN_INSIGHT_FIELDS = "campaign_id,campaign_name,spend,reach,impressions,actions,ctr";
 const AD_SET_INSIGHT_FIELDS = "campaign_id,adset_id,impressions,reach,actions";
 const AD_SET_FIELDS = "id,campaign_id,optimization_goal";
 const ACCOUNT_INSIGHT_FIELDS = "spend";
 
 const AD_SET_RESULT_CONFIG = {
-  OFFSITE_CONVERSIONS: { label: "Website Purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase", "offsite_conversion"] },
-  VALUE: { label: "Website Purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase", "offsite_conversion"] },
-  CONVERSATIONS: { label: "Messaging Conversations", actions: ["onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d", "messaging_first_reply"] },
-  REPLIES: { label: "Messaging Conversations", actions: ["messaging_first_reply", "onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d"] },
-  POST_ENGAGEMENT: { label: "Post Engagement", actions: ["post_engagement"] },
-  PAGE_LIKES: { label: "Page Likes", actions: ["page_like", "like"] },
-  LINK_CLICKS: { label: "Link Clicks", actions: ["link_click"] },
+  OFFSITE_CONVERSIONS: { label: "Website purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase"] },
+  VALUE: { label: "Website purchases", actions: ["offsite_conversion.fb_pixel_purchase", "omni_purchase", "purchase"] },
+  CONVERSATIONS: { label: "Messaging conversations started", actions: ["onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d", "messaging_first_reply"] },
+  REPLIES: { label: "Messaging conversations started", actions: ["messaging_first_reply", "onsite_conversion.messaging_conversation_started_7d", "messaging_conversation_started_7d"] },
+  POST_ENGAGEMENT: { label: "Post engagements", actions: ["post_engagement"] },
+  PAGE_LIKES: { label: "Follows or likes", actions: ["page_like", "like"] },
+  LINK_CLICKS: { label: "Link clicks", actions: ["link_click"] },
+  LANDING_PAGE_VIEWS: { label: "Landing page views", actions: ["landing_page_view"] },
   LEAD_GENERATION: { label: "Leads", actions: ["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead"] },
+  QUALITY_LEAD: { label: "Leads", actions: ["lead", "onsite_conversion.lead_grouped", "offsite_conversion.fb_pixel_lead"] },
   IMPRESSIONS: { label: "Impressions", field: "impressions" },
   REACH: { label: "Reach", field: "reach" },
-  THRUPLAY: { label: "Video Views", actions: ["video_thruplay_watched_actions", "video_thruplay", "thruplay", "video_view"] },
-  QUALITY_CALL: { label: "Phone Calls", actions: ["click_to_call_call_confirm", "phone_call_click"] },
-  APP_INSTALLS: { label: "App Installs", actions: ["mobile_app_install", "app_install"] },
-  LANDING_PAGE_VIEWS: { label: "Landing Page Views", actions: ["landing_page_view"] },
+  AD_RECALL_LIFT: { label: "Reach", field: "reach" },
+  THRUPLAY: { label: "ThruPlays", actions: ["video_thruplay_watched_actions", "video_thruplay", "thruplay"] },
+  QUALITY_CALL: { label: "Calls", actions: ["click_to_call_call_confirm", "phone_call_click"] },
+  APP_INSTALLS: { label: "App installs", actions: ["mobile_app_install", "app_install", "omni_app_install"] },
+};
+const OBJECTIVE_RESULT_LABEL = {
+  OUTCOME_SALES: "Website purchases",
+  CONVERSIONS: "Website purchases",
+  PRODUCT_CATALOG_SALES: "Website purchases",
+  OUTCOME_LEADS: "Leads",
+  LEAD_GENERATION: "Leads",
+  OUTCOME_TRAFFIC: "Link clicks",
+  LINK_CLICKS: "Link clicks",
+  OUTCOME_AWARENESS: "Reach",
+  BRAND_AWARENESS: "Reach",
+  REACH: "Reach",
+  OUTCOME_ENGAGEMENT: "Post engagements",
+  POST_ENGAGEMENT: "Post engagements",
+  PAGE_LIKES: "Follows or likes",
+  OUTCOME_APP_PROMOTION: "App installs",
+  APP_INSTALLS: "App installs",
+  MESSAGES: "Messaging conversations started",
+  VIDEO_VIEWS: "ThruPlays",
 };
 
 class GraphApiError extends ApiError {
@@ -49,14 +69,52 @@ function sum(values) { return values.reduce((total, value) => total + value, 0);
 function normalizeActions(actions) {
   return Array.isArray(actions) ? actions.filter((item) => item?.action_type).map((item) => ({ actionType: String(item.action_type), value: number(item.value) })) : [];
 }
+function resultLabelForAction(type) {
+  const value = String(type || "").toLowerCase();
+  if (value.includes("messaging")) return "Messaging conversations started";
+  if (value.includes("page_like") || value === "like" || value.includes("follow")) return "Follows or likes";
+  if (value.includes("purchase")) return "Website purchases";
+  if (value.includes("lead")) return "Leads";
+  if (value.includes("landing_page")) return "Landing page views";
+  if (value.includes("link_click")) return "Link clicks";
+  if (value.includes("app_install")) return "App installs";
+  if (value.includes("post_engagement")) return "Post engagements";
+  if (value.includes("thruplay") || value.includes("video_view")) return "ThruPlays";
+  return "";
+}
 function selectedResultFromActions(actions) {
-  const priority = ["offsite_conversion", "lead", "onsite_conversion.lead_grouped", "purchase", "complete_registration", "link_click"];
+  const priority = ["onsite_conversion.messaging_conversation_started_7d", "purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase", "lead", "onsite_conversion.lead_grouped", "page_like", "like", "link_click", "landing_page_view", "post_engagement"];
   if (!Array.isArray(actions)) return { value: 0, metric: "" };
   for (const type of priority) {
     const action = actions.find((item) => item?.action_type === type);
-    if (action) return { value: number(action.value), metric: type };
+    const label = resultLabelForAction(action?.action_type);
+    if (action && label) return { value: number(action.value), metric: label };
   }
   return { value: 0, metric: "" };
+}
+function dominantResultLabel(goals, objective) {
+  const counts = new Map();
+  for (const goal of goals || []) {
+    const label = AD_SET_RESULT_CONFIG[String(goal || "").toUpperCase()]?.label;
+    if (!label) continue;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  }
+  let best = "";
+  let bestCount = 0;
+  for (const [label, count] of counts) {
+    if (count > bestCount) { best = label; bestCount = count; }
+  }
+  return best || OBJECTIVE_RESULT_LABEL[String(objective || "").toUpperCase()] || "";
+}
+function goalsByCampaignFromAdSets(adSets) {
+  const goalsByCampaign = new Map();
+  for (const adSet of adSets || []) {
+    const id = String(adSet.campaign_id || "");
+    if (!id) continue;
+    if (!goalsByCampaign.has(id)) goalsByCampaign.set(id, []);
+    goalsByCampaign.get(id).push(adSet.optimization_goal);
+  }
+  return goalsByCampaign;
 }
 function adSetResult(row) {
   const optimizationGoal = String(row.optimization_goal || "").toUpperCase();
@@ -147,42 +205,67 @@ async function fetchFacebookCampaignInsightsUncached({ facebookAdAccountId, acce
     fetchAll(`/${facebookAdAccountId}/insights?${adSetParams.toString()}`, accessToken),
     fetchAll(`/${facebookAdAccountId}/adsets?fields=${AD_SET_FIELDS}`, accessToken),
   ]);
+  const insightIds = [...new Set(campaignRows.map((row) => String(row?.campaign_id || "")).filter(Boolean))];
+  let metaById = new Map();
+  if (insightIds.length) {
+    try {
+      const filtering = JSON.stringify([{ field: "id", operator: "IN", value: insightIds }]);
+      const metas = await fetchAll(`/${facebookAdAccountId}/campaigns?fields=${CAMPAIGN_FIELDS}&filtering=${encodeURIComponent(filtering)}`, accessToken);
+      metaById = new Map(metas.filter((row) => row?.id).map((row) => [String(row.id), row]));
+    } catch {
+      metaById = new Map();
+    }
+  }
   const goalsByAdSet = new Map(adSets.filter((row) => row?.id).map((row) => [String(row.id), row.optimization_goal]));
+  const goalsByCampaign = goalsByCampaignFromAdSets(adSets);
   const resultsByCampaign = new Map();
   for (const row of adSetRows.filter((item) => item?.campaign_id)) {
     const key = String(row.campaign_id);
     const existing = resultsByCampaign.get(key) || {
       actions: new Map(),
-      results: 0,
-      resultMetrics: new Set(),
+      byLabel: new Map(),
       landingPageViews: 0,
     };
     const selectedResult = adSetResult({ ...row, optimization_goal: goalsByAdSet.get(String(row.adset_id)) });
-    existing.results += selectedResult.value;
-    if (selectedResult.metric) existing.resultMetrics.add(selectedResult.metric);
+    if (selectedResult.metric) existing.byLabel.set(selectedResult.metric, (existing.byLabel.get(selectedResult.metric) || 0) + selectedResult.value);
     existing.landingPageViews += number(row.actions?.find((action) => action?.action_type === "landing_page_view")?.value);
     mergeActions(existing.actions, row.actions);
     resultsByCampaign.set(key, existing);
   }
-  return campaignRows.filter((row) => row?.campaign_id).map((row) => {
+  const rows = campaignRows.filter((row) => row?.campaign_id).map((row) => {
     const facebookCampaignId = String(row.campaign_id);
-    const result = resultsByCampaign.get(facebookCampaignId) || { actions: new Map(), results: 0, resultMetrics: new Set(), landingPageViews: 0 };
+    const meta = metaById.get(facebookCampaignId) || {};
+    const budget = budgetFromCampaign(meta, sourceCurrency);
+    const result = resultsByCampaign.get(facebookCampaignId) || { actions: new Map(), byLabel: new Map(), landingPageViews: 0 };
+    const resultMetric = dominantResultLabel(goalsByCampaign.get(facebookCampaignId) || [], meta.objective);
+    const results = resultMetric ? (result.byLabel.get(resultMetric) || 0) : 0;
     const spend = number(row.spend) * usdRate;
     return {
       facebookCampaignId,
+      name: meta.name || row.campaign_name || "Facebook campaign",
+      effectiveStatus: meta.effective_status || "",
+      facebookStatus: meta.status || "",
+      objective: meta.objective || "",
+      status: campaignStatus(meta.effective_status, meta.status, meta.start_time, meta.stop_time),
+      budget: { amount: budget.amount == null ? null : budget.amount * usdRate, type: budget.type, currency: "USD" },
+      startDate: meta.start_time || null,
+      endDate: meta.stop_time || null,
       actions: [...result.actions.entries()].map(([actionType, value]) => ({ actionType, value })),
-      results: result.results,
-      resultMetric: [...result.resultMetrics].join(" + "),
+      results,
+      resultMetric,
       landingPageViews: result.landingPageViews,
       spend,
       amountSpent: spend,
-      costPerResult: result.results ? spend / result.results : 0,
+      costPerResult: results ? spend / results : 0,
       ctrAll: number(row.ctr),
       reach: number(row.reach),
       impressions: number(row.impressions),
       currency: "USD",
     };
   });
+  const resultMetrics = new Map();
+  for (const [id, goals] of goalsByCampaign) resultMetrics.set(id, dominantResultLabel(goals, metaById.get(id)?.objective));
+  return { rows, resultMetrics };
 }
 
 export function fetchFacebookCampaignInsights(options) {
@@ -223,8 +306,65 @@ function accountDto(account) {
 function formatRecentCampaigns(campaigns) {
   return campaigns.filter((campaign) => campaign.source === "facebook" && campaign.performance?.usdConversionAvailable).slice(0, 3).map((campaign) => ({ id: campaign._id, name: campaign.name, status: campaign.status, spend: campaign.performance?.amountSpent ?? campaign.performance?.spend ?? 0, impressions: campaign.performance?.impressions ?? 0, results: campaign.performance?.results ?? 0, costPerResult: campaign.performance?.costPerResult ?? 0 }));
 }
-function campaignStatus(effectiveStatus) {
-  return effectiveStatus === "ACTIVE" ? "active" : effectiveStatus === "PAUSED" ? "paused" : "draft";
+function adsManagerDelivery({ configuredStatus, effectiveStatus, startTime, stopTime } = {}) {
+  const configured = String(configuredStatus || "").toUpperCase();
+  const effective = String(effectiveStatus || "").toUpperCase();
+  const stop = stopTime ? Date.parse(stopTime) : NaN;
+  const start = startTime ? Date.parse(startTime) : NaN;
+  const now = Date.now();
+  if (configured === "DELETED" || effective === "DELETED") return "Deleted";
+  if (configured === "ARCHIVED" || effective === "ARCHIVED") return "Archived";
+  if (Number.isFinite(stop) && stop <= now) return "Completed";
+  if (configured === "PAUSED" || effective === "PAUSED" || effective.endsWith("_PAUSED")) return "Off";
+  if (effective === "DISAPPROVED") return "Rejected";
+  if (effective === "PENDING_REVIEW") return "In review";
+  if (effective === "WITH_ISSUES") return "Not delivering";
+  if (effective === "IN_PROCESS") return "Processing";
+  if (effective === "PENDING_BILLING_INFO" || effective === "PREAPPROVED") return "Pending";
+  if (Number.isFinite(start) && start > now) return "Scheduled";
+  if (configured === "ACTIVE" || effective === "ACTIVE") return "Active";
+  return "Off";
+}
+function campaignStatusFromDelivery(label) {
+  if (label === "Active") return "active";
+  if (label === "Off") return "paused";
+  if (label === "Completed") return "completed";
+  if (label === "Scheduled") return "scheduled";
+  if (label === "Rejected" || label === "Not delivering") return "failed";
+  return "draft";
+}
+function campaignStatus(effectiveStatus, configuredStatus, startTime, stopTime) {
+  return campaignStatusFromDelivery(adsManagerDelivery({
+    configuredStatus: configuredStatus || effectiveStatus,
+    effectiveStatus,
+    startTime,
+    stopTime,
+  }));
+}
+export async function fetchFacebookCampaignDelivery(facebookAdAccountId, accessToken) {
+  const campaignRows = await fetchAll(`/${facebookAdAccountId}/campaigns?fields=id,name,objective,status,configured_status,effective_status,start_time,stop_time&limit=200`, accessToken);
+  const byId = new Map();
+  for (const campaign of campaignRows) {
+    if (!campaign?.id) continue;
+    const delivery = adsManagerDelivery({
+      configuredStatus: campaign.configured_status || campaign.status,
+      effectiveStatus: campaign.effective_status,
+      startTime: campaign.start_time,
+      stopTime: campaign.stop_time,
+    });
+    byId.set(String(campaign.id), {
+      delivery,
+      effectiveStatus: campaign.effective_status || "",
+      facebookStatus: campaign.configured_status || campaign.status || "",
+      status: campaignStatusFromDelivery(delivery),
+      startDate: campaign.start_time || null,
+      endDate: campaign.stop_time || null,
+      name: campaign.name || "",
+      objective: campaign.objective || "",
+      resultMetric: dominantResultLabel([], campaign.objective),
+    });
+  }
+  return byId;
 }
 function budgetFromCampaign(row, currency) {
   if (row.daily_budget !== undefined && row.daily_budget !== null) return { amount: number(row.daily_budget) / 100, type: "daily", currency };
@@ -321,13 +461,13 @@ async function syncAccount(agencyId, account, accessToken) {
             facebookObjective: row.objective || "",
             facebookStatus: row.status || "",
             effectiveStatus: row.effective_status || "",
-            status: campaignStatus(row.effective_status || row.status),
+            status: campaignStatus(row.effective_status, row.status, row.start_time, row.stop_time),
             lastSeenAt: now,
             isStale: false,
             startDate: row.start_time || null,
             endDate: row.stop_time || null,
             budget: { ...budgetFromCampaign(row, "USD"), amount: budgetFromCampaign(row, account.currency || "USD").amount == null ? null : convertToUsd(budgetFromCampaign(row, account.currency || "USD").amount, account.currency || "USD") },
-            performance: { spend, amountSpent: spend, reach: number(insight.reach), impressions: number(insight.impressions), results: selectedResult.value, resultMetric: selectedResult.metric, actions, ctrAll: number(insight.ctr), costPerResult: selectedResult.value ? spend / selectedResult.value : 0, currency: "USD", delivery: row.effective_status || row.status || "", sourceCurrency, usdConversionAvailable: true, lastSyncedAt: now },
+            performance: { spend, amountSpent: spend, reach: number(insight.reach), impressions: number(insight.impressions), results: selectedResult.value, resultMetric: selectedResult.metric, actions, ctrAll: number(insight.ctr), costPerResult: selectedResult.value ? spend / selectedResult.value : 0, currency: "USD", delivery: adsManagerDelivery({ configuredStatus: row.status, effectiveStatus: row.effective_status, startTime: row.start_time, stopTime: row.stop_time }), sourceCurrency, usdConversionAvailable: true, lastSyncedAt: now },
           },
           $setOnInsert: { agency: agencyId, source: "facebook", facebookCampaignId: id, facebookAdAccountId: accountId, platform: "facebook", objective: row.objective || "" },
         },
@@ -369,6 +509,7 @@ export async function syncFacebookInsightsForAgency(agencyId) {
   const credential = await ApiCredential.findOne({ agency: agencyId }).select("+accessToken");
   const token = credential?.accessToken?.trim() || "";
   if (!credential || !token || !credential.isConnected || (credential.tokenExpiresAt && credential.tokenExpiresAt <= new Date())) return { synced: false, mode: "not-connected", message: "Connect Facebook before syncing all ad accounts.", overview: await getFacebookOverviewForAgency(agencyId), accounts: [] };
+  if (!env.facebookRequestTimeoutMs || !env.facebookGraphVersion) throw new ApiError(500, "Facebook runtime configuration is invalid");
   let discovered;
   try {
     discovered = await discoverFacebookAdAccounts(token);
@@ -395,14 +536,9 @@ export async function getFacebookAccountsForAgency(agencyId, clientId = null) {
   const credential = await ApiCredential.findOne({ agency: agencyId });
   if (!clientId) return (credential?.adAccounts || []).map(accountDto);
 
-  const client = await Client.findOne({ _id: clientId, agency: agencyId }).select("facebookAdAccountIds");
-  const assignedIds = new Set(client?.facebookAdAccountIds || []);
   const individuallyAssigned = await Campaign.find({ agency: agencyId, client: clientId, source: "facebook" })
     .select("facebookAdAccountId facebookAdAccountName");
-  const visibleIds = new Set([
-    ...assignedIds,
-    ...individuallyAssigned.map((campaign) => campaign.facebookAdAccountId).filter(Boolean),
-  ]);
+  const visibleIds = new Set(individuallyAssigned.map((campaign) => campaign.facebookAdAccountId).filter(Boolean));
   const snapshots = new Map((credential?.adAccounts || []).map((account) => {
     const dto = accountDto(account);
     return [dto.facebookAdAccountId, dto];
@@ -443,7 +579,8 @@ export async function disconnectFacebookForAgency(agencyId, revokeRemote = false
 }
 
 export async function getFacebookOverviewForAgency(agencyId, clientId = null) {
-  const campaignScope = clientId ? await getClientCampaignVisibility(agencyId, clientId) : { agency: agencyId };
+  if (!env.facebookRequestTimeoutMs || !env.facebookGraphVersion) throw new ApiError(500, "Facebook runtime configuration is invalid");
+  const campaignScope = clientId ? { $and: [await getClientCampaignVisibility(agencyId, clientId), { source: "facebook" }] } : { agency: agencyId, source: "facebook" };
   const invoiceScope = clientId ? { agency: agencyId, client: clientId } : { agency: agencyId };
   const [agency, credential, campaigns, invoices] = await Promise.all([Agency.findById(agencyId), ApiCredential.findOne({ agency: agencyId }).select("+accessToken"), Campaign.find(campaignScope).sort({ createdAt: -1 }), Invoice.find(invoiceScope).sort({ createdAt: -1 })]);
   const facebookCampaigns = campaigns.filter((campaign) => campaign.source === "facebook");

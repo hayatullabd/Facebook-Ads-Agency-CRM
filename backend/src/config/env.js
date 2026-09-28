@@ -74,7 +74,7 @@ const facebookUsdRates = parseFacebookUsdRates(process.env.FACEBOOK_USD_RATES);
 export const env = {
   nodeEnv,
   isProduction,
-  port: parseBoundedInteger("PORT", 5000, 1, 65535),
+  port: parseBoundedInteger("PORT", Number(process.env.PORT || 5001), 1, 65535),
   clientUrl,
   clientUrls,
   jwtSecret,

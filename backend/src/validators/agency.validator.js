@@ -14,3 +14,21 @@ export const validateFacebookCredential = validateObject({
 export const validateFacebookDisconnect = validateObject({
   revokeRemote: { type: "boolean" },
 });
+
+const textField = (value, max, required = true) => {
+  if (value == null || value === "") return !required;
+  return typeof value === "string" && value.trim().length <= max && (!required || value.trim().length > 0);
+};
+const paymentMethods = ["bkash", "nagad", "bank", "cash"];
+export const validateAgencyPaymentDetails = validateObject({
+  paymentDetails: {
+    required: true,
+    custom: (value) => Array.isArray(value) && value.length <= 8 && value.every((item) => {
+      if (!item || typeof item !== "object" || !paymentMethods.includes(item.method)) return false;
+      if (item.method === "bank") {
+        return textField(item.accountName, 120) && textField(item.accountNumber, 80) && textField(item.bankName, 120) && textField(item.branchName, 120) && textField(item.routingNumber, 40);
+      }
+      return textField(item.name, 80) && textField(item.accountName, 120) && textField(item.accountNumber, 80);
+    }),
+  },
+}, "body", true);
