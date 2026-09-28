@@ -56,14 +56,35 @@ export const assignSubscriptionPlan = async ({ agencyId, subscriptionId, planId 
   return subscription.populate("plan");
 };
 
+const renewalCurrencies = new Set(["BDT", "USD", "INR"]);
+
+async function invoiceRenewal(subscription) {
+  const periodStart = new Date(subscription.renewalAt);
+  const alreadyBilled = await SubscriptionInvoice.exists({ subscription: subscription._id, periodStart });
+  if (alreadyBilled) return;
+  const plan = subscription.plan;
+  await SubscriptionInvoice.create({
+    agency: subscription.agency,
+    subscription: subscription._id,
+    periodStart,
+    invoiceNumber: await nextInvoiceNumber(),
+    amount: Number(plan.price) || 0,
+    currency: renewalCurrencies.has(plan.currency) ? plan.currency : "USD",
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    note: `Monthly renewal · ${plan.name || "Plan"}`,
+  });
+}
+
 export const renewSubscriptions = async () => {
   const due = await Subscription.find({ status: "active", autoRenew: { $ne: false }, renewalAt: { $lte: new Date() } }).populate("plan");
   const results = [];
   for (const subscription of due) {
     if (!subscription.plan?._id) continue;
+    await invoiceRenewal(subscription);
+    const renewalAt = new Date(Date.now() + MONTH_IN_MS);
     subscription.currentPeriodStart = new Date();
-    subscription.currentPeriodEnd = new Date(Date.now() + MONTH_IN_MS);
-    subscription.renewalAt = new Date(Date.now() + MONTH_IN_MS);
+    subscription.currentPeriodEnd = renewalAt;
+    subscription.renewalAt = renewalAt;
     await subscription.save();
     await Agency.findByIdAndUpdate(subscription.agency, { subscriptionRenewalAt: subscription.renewalAt, subscriptionStatus: subscription.status, subscriptionPlan: subscription.plan._id, subscription: subscription._id });
     results.push(subscription);
